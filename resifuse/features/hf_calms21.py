@@ -37,7 +37,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 from resifuse.config import DEFAULT_CONFIG, load_config
 from resifuse.data.datasets import CalMS21Dataset
-# NOTE: ``modules.VisionMagnifier`` and ``precompute_mabe_cache.VideoMAEEncoderForCache``
+# NOTE: the encoders in ``resifuse.features.hf_mabe`` (Qwen, VideoMAE)
 # pull in flash_attn / transformers — heavy imports only needed when actually
 # running the vision encoder. Defer them into build_encoder() so --motion-only
 # works on hosts without flash_attn (e.g. login nodes).
@@ -370,35 +370,10 @@ def build_encoder(
 ) -> nn.Module:
     # Deferred imports: only pay flash_attn / transformers cost when actually
     # building an encoder. --motion-only callers never reach this function.
-    from resifuse.models.modules import VisionMagnifier
-    from resifuse.features.hf_mabe import VideoMAEEncoderForCache
+    from resifuse.features.hf_mabe import VideoMAEEncoderForCache, build_qwen_encoder
 
     if encoder_type == "qwen":
-        enc = VisionMagnifier(
-            cfg.get("qwen_vision_dim", 2048),  # Qwen vision tower output; vision_dim is the training feature size
-            cfg.get("motion_dim", 256),
-            use_real_model=cfg.get("use_real_qwen", True),
-            qwen_model_id=cfg.get("qwen_model_id", "Qwen/Qwen3-VL-2B-Instruct"),
-            agg_layers=cfg.get("vision_agg_layers", 2),
-            agg_heads=cfg.get("vision_agg_heads", 4),
-            max_len=max_len,
-            enable_lora=cfg.get("vision_lora_enable", False),
-            lora_r=cfg.get("vision_lora_r", 8),
-            lora_alpha=cfg.get("vision_lora_alpha", 16),
-            lora_layers=cfg.get("vision_lora_layers", 4),
-            gate_thresh=cfg.get("gate_thresh", 0.5),
-            enable_flash_attn=cfg.get("qwen_flash_attn", False),
-            use_deepstack=cfg.get("vision_use_deepstack", False),
-            use_frame_diff=cfg.get("vision_frame_diff", False),
-            frame_diff_abs=cfg.get("vision_frame_diff_abs", False),
-            frame_diff_fuse=cfg.get("vision_frame_diff_fuse", "residual"),
-            frame_diff_dt_mode=cfg.get("vision_frame_diff_dt_mode", "divide"),
-            frame_diff_dt_min=cfg.get("vision_frame_diff_dt_min", 1.0),
-            use_temporal_conv=cfg.get("vision_temporal_conv", False),
-            temporal_conv_kernel=cfg.get("vision_temporal_conv_kernel", 3),
-            enable_grad_checkpoint=cfg.get("qwen_grad_checkpoint", False),
-            allow_random_fallback=cfg.get("allow_random_vision_fallback", False),
-        ).to(device=device)
+        enc = build_qwen_encoder(cfg, max_len, device)
     else:
         if save_patch_tokens:
             raise ValueError(

@@ -4,8 +4,8 @@
 # ============================================================================
 # DATA PATHS & CACHE
 # ============================================================================
-cache_dir: data/freely_moving_mouse/cache_windows_256
-vision_cache_dir: data/freely_moving_mouse/cache_windows_256/vision_feats_videoprism
+cache_dir: data/freely_moving_mouse/windows
+vision_cache_dir: data/freely_moving_mouse/features_videoprism
 
 use_vision_cache: true
 
@@ -70,7 +70,7 @@ vq_lr_scale: 1
 lr_scheduler: CosineAnnealingLR  # StepLR | MultiStepLR | ExponentialLR | LinearLR | CosineAnnealingLR | none
 lr_scheduler_params: {T_max: 100, eta_min: 1.0e-5}
 
-# Masking & gate control
+# Masking
 mask_ratio: 0.5
 mabe_mae_target_ratio: 0.5
 mabe_mae_context_ratio: 0.15
@@ -80,9 +80,6 @@ mabe_mae_block_max: 8
 
 social_attn_stat_enable: true
 social_attn_stat_batches: 5
-
-gate_thresh: 1.0
-gate_topk_ratio: 1.0  # >0: use top-k ratio instead of gate_thresh (e.g., 0.2 = top 20%)
 
 # Runtime settings
 log_interval: 1
@@ -131,20 +128,6 @@ vq_beta: 0.25
 vq_dead_code_threshold: 0.1
 vq_revival_warmup_steps: 3
 vq_l2_normalize: false
-
-# Vision model (Qwen)
-qwen_model_id: Qwen/Qwen3.5-2B
-qwen_flash_attn: true
-qwen_grad_checkpoint: false
-
-# Vision LoRA
-vision_lora_enable: false
-
-# Vision features & processing
-vision_use_deepstack: false
-vision_frame_diff: false
-vision_temporal_conv: false
-vision_temporal_conv_kernel: 5
 
 # ============================================================================
 # LOSS FUNCTIONS & WEIGHTS

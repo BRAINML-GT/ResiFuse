@@ -11,9 +11,9 @@
 # ============================================================================
 dataset: calms21
 
-calms21_data_dir: data/calms21/resifuse_calms21_data_w256_s128
-calms21_split_json: data/calms21/resifuse_calms21_data_w256_s128/calms21_split.json
-calms21_cache_dir: data/calms21/resifuse_calms21_data_w256_s128/vision_cache_videoprism
+calms21_data_dir: data/calms21/windows
+calms21_split_json: splits/calms21_split.json
+calms21_cache_dir: data/calms21/features_videoprism
 
 use_vision_cache: true
 
@@ -74,7 +74,7 @@ vq_lr_scale: 1
 lr_scheduler: CosineAnnealingLR
 lr_scheduler_params: {T_max: 50, eta_min: 1.0e-4}
 
-#Masking & gate control
+# Masking
 mask_ratio: 0.5
 mabe_mae_target_ratio: 0.5
 mabe_mae_context_ratio: 0.15

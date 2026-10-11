@@ -4,8 +4,8 @@
 # ============================================================================
 # DATA PATHS & CACHE
 # ============================================================================
-cache_dir: data/freely_moving_mouse/cache_windows_256
-vision_cache_dir: data/freely_moving_mouse/cache_windows_256/vision_feats_videoprism
+cache_dir: data/freely_moving_mouse/windows
+vision_cache_dir: data/freely_moving_mouse/features_videoprism
 
 use_vision_cache: true
 
@@ -88,7 +88,7 @@ lr_scheduler_params: {T_max: 50, eta_min: 1.0e-4}
 lr_warmup_epochs: 0
 lr_warmup_start_factor: 0.01
 
-# Masking & gate control
+# Masking
 mask_ratio: 0.5
 mabe_mae_target_ratio: 0.5
 mabe_mae_context_ratio: 0.15

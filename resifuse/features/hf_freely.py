@@ -22,7 +22,6 @@ import torch
 
 from resifuse.config import DEFAULT_CONFIG, load_config
 from resifuse.data.datasets import FreelyMovingMouseDataset, MaBeMouseDataset
-from resifuse.models.modules import VisionMagnifier
 # Reuse encoder wrappers + helpers from precompute_mabe_cache to keep the
 # two pipelines in lock-step.
 from resifuse.features.hf_mabe import (
@@ -30,6 +29,7 @@ from resifuse.features.hf_mabe import (
     DEFAULT_MODEL_IDS,
     HFImageEncoderForCache,
     VideoMAEEncoderForCache,
+    build_qwen_encoder,
     _to_numpy_contiguous,
     _resolve_frame_resize,
 )
@@ -371,31 +371,7 @@ def build_encoder(
 ):
     """Build the vision encoder wrapper. Matches resifuse/features/hf_mabe.py."""
     if encoder_type == "qwen":
-        return VisionMagnifier(
-            cfg.get("qwen_vision_dim", 2048),  # Qwen vision tower output; vision_dim is the training feature size
-            cfg.get("motion_dim", 256),
-            use_real_model=cfg.get("use_real_qwen", True),
-            qwen_model_id=cfg.get("qwen_model_id", "Qwen/Qwen3-VL-2B-Instruct"),
-            agg_layers=cfg.get("vision_agg_layers", 2),
-            agg_heads=cfg.get("vision_agg_heads", 4),
-            max_len=max_len,
-            enable_lora=cfg.get("vision_lora_enable", True),
-            lora_r=cfg.get("vision_lora_r", 8),
-            lora_alpha=cfg.get("vision_lora_alpha", 16),
-            lora_layers=cfg.get("vision_lora_layers", 4),
-            gate_thresh=cfg.get("gate_thresh", 0.5),
-            enable_flash_attn=cfg.get("qwen_flash_attn", False),
-            use_deepstack=cfg.get("vision_use_deepstack", True),
-            use_frame_diff=cfg.get("vision_frame_diff", False),
-            frame_diff_abs=cfg.get("vision_frame_diff_abs", False),
-            frame_diff_fuse=cfg.get("vision_frame_diff_fuse", "residual"),
-            frame_diff_dt_mode=cfg.get("vision_frame_diff_dt_mode", "divide"),
-            frame_diff_dt_min=cfg.get("vision_frame_diff_dt_min", 1.0),
-            use_temporal_conv=cfg.get("vision_temporal_conv", True),
-            temporal_conv_kernel=cfg.get("vision_temporal_conv_kernel", 3),
-            enable_grad_checkpoint=cfg.get("qwen_grad_checkpoint", False),
-            allow_random_fallback=cfg.get("allow_random_vision_fallback", False),
-        ).to(device=device)
+        return build_qwen_encoder(cfg, max_len, device)
     resolved_image_size = encoder_image_size
     if resolved_image_size is None:
         resolved_image_size = _resolve_frame_resize(cfg)

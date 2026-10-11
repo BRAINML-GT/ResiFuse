@@ -12,11 +12,11 @@
 dataset: calms21
 
 # Stage 1 output (resifuse/preprocessing/calms21.py)
-calms21_data_dir: data/calms21/resifuse_calms21_data_w256_s128
-calms21_split_json: data/calms21/resifuse_calms21_data_w256_s128/calms21_split.json
+calms21_data_dir: data/calms21/windows
+calms21_split_json: splits/calms21_split.json
 
 # Stage 3 output (resifuse/features/hf_calms21.py)
-calms21_cache_dir: data/calms21/resifuse_calms21_data_w256_s128/vision_cache_videoprism
+calms21_cache_dir: data/calms21/features_videoprism
 
 use_vision_cache: true
 
@@ -37,7 +37,7 @@ ds_stride: 4
 
 # Frame processing
 frame_resize: 224          # frames are resized to this before VideoPrism (as for the paper features)
-frame_resize_align: 16     # Qwen patch_size=16 -> align 16
+frame_resize_align: 16     # frame sizes are rounded to a multiple of this
 
 # Keypoint & motion features (no ego-centering / body-length scaling for
 # CalMS21 -- raw pixel coords are kept, same as Stage 1 output).
@@ -85,9 +85,6 @@ mabe_mae_block_max: 8
 social_attn_stat_enable: true
 social_attn_stat_batches: 5
 
-gate_thresh: 1.0
-gate_topk_ratio: 1.0
-
 # Runtime
 log_interval: 1
 
@@ -101,7 +98,7 @@ bigru_layers: 1
 bigru_dropout: 0.0
 
 motion_dim: 128             # was 256
-vision_dim: 1024            # VideoPrism output dim (Qwen3.5 pooled would be 2048)
+vision_dim: 1024            # VideoPrism feature size
 num_layers: 2               # was 4
 num_heads: 8
 
@@ -134,19 +131,6 @@ vq_attn_layers_dec: 2
 vq_beta: 0.25
 vq_dead_code_threshold: 0.1
 vq_l2_normalize: false
-
-# Vision model (Qwen) -- unchanged from MABe.
-qwen_model_id: Qwen/Qwen3.5-2B
-qwen_flash_attn: true   # REQUIRED for speed: without flash-attn, Qwen3_5VisionAttention falls back to a Python loop over cu_seqlens chunks (~100s/forward on (2,64,3,224,224)).
-qwen_grad_checkpoint: false
-
-# Vision LoRA (frozen encoder, no LoRA by default).
-vision_lora_enable: false
-
-vision_use_deepstack: false
-vision_frame_diff: false
-vision_temporal_conv: false
-vision_temporal_conv_kernel: 5
 
 # ============================================================================
 # LOSS FUNCTIONS & WEIGHTS

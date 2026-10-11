@@ -84,7 +84,7 @@ done
 
 # 2. splits used in the paper (fine-tuning 50/10/40; pretraining 70/20/10, excluding
 #    fine-tuning val/test videos). resifuse.preprocessing.split_mabe generates new ones.
-D=data/mabe2022/resifuse_mabe_data_pseq_300_200_crop_160_0.2_pmin_32_gap_60
+D=data/mabe2022/windows
 cp splits/mabe_pretrain_split.json $D/pretrain/pretrain_split.json
 cp splits/mabe_finetune_split.json $D/finetune/finetune_split.json
 
@@ -100,15 +100,12 @@ done
 Task 1 keypoints and videos from the CalMS21 release, as `data/calms21/task1_classic_classification/calms21_task1_{train,test}.json` and `data/calms21/task1_videos_mp4/{train,test}/*.mp4`.
 
 ```bash
-D=data/calms21/resifuse_calms21_data_w256_s128
-# 1. pose windows (defaults = paper settings: 256 frames, stride 128)
+# 1. pose windows (defaults = paper settings: 256 frames, stride 128). The configs read the
+#    split used in the paper from splits/calms21_split.json (the 19 official test videos; 10% of
+#    the official training videos become val); resifuse.preprocessing.split_calms21 makes new ones.
 python -m resifuse.preprocessing.calms21
 
-# 2. split used in the paper: the 19 official test videos; 10% of the official training
-#    videos become val. resifuse.preprocessing.split_calms21 --respect-official generates new ones.
-cp splits/calms21_split.json $D/calms21_split.json
-
-# 3. VideoPrism features (VideoPrism environment); one cache serves both stages
+# 2. VideoPrism features (VideoPrism environment); one cache serves both stages
 python -m resifuse.features.videoprism --dataset calms21 --config configs/calms21_pretrain.yaml \
   --splits train val test --devices 0
 ```
@@ -132,14 +129,13 @@ done
 
 ### Other vision encoders (Mouse Triplet)
 
-The encoder comparison uses VideoMAE(V2), DINOv3, CLIP and Qwen3.5 features on Mouse Triplet. They are extracted with the training environment; frames are resized to `frame_resize` (128) before every encoder, as in the paper, and the Qwen settings (Qwen3.5-2B, no LoRA) are in the pretraining config, which is therefore used for both stages:
+The encoder comparison uses VideoMAE(V2), DINOv3, CLIP and Qwen3.5 features on Mouse Triplet. They are extracted with the training environment; frames are resized to `frame_resize` (128) before every encoder, as in the paper, and `qwen` is the Qwen3.5-2B vision tower:
 
 ```bash
-D=data/mabe2022/resifuse_mabe_data_pseq_300_200_crop_160_0.2_pmin_32_gap_60
 for enc in videomae dinov3 clip qwen; do
   for stage in pretrain finetune; do
-    python -m resifuse.features.hf_mabe --config configs/mabe_pretrain.yaml --stage $stage \
-      --use-vision-encoder --encoder $enc --mabe-data-cache-dir $D/resifuse_mabe_cache_v2_$enc --devices cuda:0
+    python -m resifuse.features.hf_mabe --config configs/mabe_${stage}.yaml --stage $stage \
+      --use-vision-encoder --encoder $enc --mabe-data-cache-dir data/mabe2022/features_$enc --devices cuda:0
   done
 done
 ```

@@ -293,7 +293,7 @@ def main() -> None:
                    help="Dir containing calms21_task1_{train,test}.json")
     p.add_argument("--video-dir", type=Path, default=Path("data/calms21/task1_videos_mp4"),
                    help="Root with {train,test}/*.mp4")
-    p.add_argument("--output-dir", type=Path, default=Path("data/calms21/resifuse_calms21_data_w256_s128"),
+    p.add_argument("--output-dir", type=Path, default=Path("data/calms21/windows"),
                    help="Output directory for per-video .pt + training_index.json")
     p.add_argument("--window-size", type=int, default=256)
     p.add_argument("--stride", type=int, default=128)

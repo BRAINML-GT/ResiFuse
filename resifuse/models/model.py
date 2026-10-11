@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
-from resifuse.models.modules import MotionScout, VisionMagnifier
+from resifuse.models.modules import MotionScout
 
 
 def select_frames(r1, r2, budget_ratio=0.25, global_ratio=0.3):

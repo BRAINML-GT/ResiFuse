@@ -38,7 +38,7 @@ from scipy.ndimage import uniform_filter1d
 from tqdm import tqdm
 
 DATA_ROOT = Path("data/mabe2022")
-DEFAULT_OUTPUT_DIR = DATA_ROOT / "resifuse_mabe_data_pseq_300_200_crop_160_0.2_pmin_32_gap_60"
+DEFAULT_OUTPUT_DIR = DATA_ROOT / "windows"
 STAGE_WINDOWS = {"pretrain": (300, 150), "finetune": (200, 200)}  # (window size, stride)
 
 KEYPOINTS = [

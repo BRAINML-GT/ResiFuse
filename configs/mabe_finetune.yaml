@@ -4,8 +4,8 @@
 # ============================================================================
 # DATA PATHS & CACHE
 # ============================================================================
-mabe_data_dir: data/mabe2022/resifuse_mabe_data_pseq_300_200_crop_160_0.2_pmin_32_gap_60
-mabe_data_cache_dir: data/mabe2022/resifuse_mabe_data_pseq_300_200_crop_160_0.2_pmin_32_gap_60/resifuse_mabe_cache_v2_videoprism
+mabe_data_dir: data/mabe2022/windows
+mabe_data_cache_dir: data/mabe2022/features_videoprism
 
 use_vision_cache: true
 
@@ -95,7 +95,7 @@ lr_scheduler_params: {T_max: 50, eta_min: 1.0e-4}
 lr_warmup_epochs: 0
 lr_warmup_start_factor: 0.01
 
-# Masking & gate control
+# Masking
 mask_ratio: 0.5
 mabe_mae_target_ratio: 0.5
 mabe_mae_context_ratio: 0.15

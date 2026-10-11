@@ -2,6 +2,11 @@
 
 Code for **Learning When Visual Context Matters for Mouse Behavior Analysis** (NeurIPS 2026).
 
+Weihan Li<sup>1</sup>, Jingyang Ke<sup>1</sup>, Qinheng Pu<sup>2</sup>, Yule Wang<sup>1</sup>, Chengrui Li<sup>1</sup>, Anqi Wu<sup>1</sup>
+
+<sup>1</sup>School of Computational Science and Engineering, Georgia Tech<br>
+<sup>2</sup>Wallace H. Coulter Department of Biomedical Engineering, Georgia Tech and Emory University
+
 ResiFuse pretrains a pose-based motion encoder with residual vector quantization (RVQ) and an auxiliary cross-modal loss. At fine-tuning time, the quantization residual of each frame decides which frames receive visual features: only the frames with the largest residuals are decoded and encoded by the vision encoder. The same fused representation is used for supervised behavior classification and for unsupervised segmentation with deep embedded clustering (DEC).
 
 ## Repository layout

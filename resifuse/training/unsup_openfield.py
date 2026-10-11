@@ -1,14 +1,14 @@
-"""Freely-moving-mouse unsupervised DEC behavior segmentation.
+"""Open Field unsupervised DEC behavior segmentation.
 
-Mirrors resifuse/training/unsup_mabe.py but uses :class:`FreelyMovingMouseDataset`.
-Freely batches carry ``(stem, start, end)`` rather than the MaBe-style
-``metadata`` dict, so :class:`FreelyDECWrapper` injects a synthetic
+Mirrors resifuse/training/unsup_mabe.py but uses :class:`OpenFieldDataset`.
+Open Field batches carry ``(stem, start, end)`` rather than the MaBe-style
+``metadata`` dict, so :class:`OpenFieldDECWrapper` injects a synthetic
 ``metadata`` per sample (video_id=stem, start_frame=start, ds_stride=...)
 so the shared unsup helpers (global-mask lookup, single-label F1 dedup) work
 unchanged.
 
 Usage:
-    python -m resifuse.training.unsup_freely --config ./config_free_finetune.yaml
+    python -m resifuse.training.unsup_openfield --config configs/openfield_finetune.yaml
 """
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ import torch
 from torch.utils.data import Dataset
 
 from resifuse.config import load_config_with_defaults
-from resifuse.data.datasets import FreelyMovingMouseDataset
+from resifuse.data.datasets import OpenFieldDataset
 
 from resifuse.training.unsup_mabe import (
     parse_args as _mabe_parse_args,
@@ -28,27 +28,27 @@ from resifuse.training.unsup_mabe import (
 )
 
 
-FREELY_DEFAULT_LABELS = ["Rearing", "Grooming"]
+OPENFIELD_DEFAULT_LABELS = ["Rearing", "Grooming"]
 
 
 def parse_args(config_path: str | None = None):
     args = _mabe_parse_args(config_path)
-    args.dataset = "freely_mouse"
+    args.dataset = "openfield"
     return args
 
 
-class FreelyDECWrapper(Dataset):
-    """Expose MaBe-style ``metadata`` dict on each freely sample so the shared
+class OpenFieldDECWrapper(Dataset):
+    """Expose MaBe-style ``metadata`` dict on each Open Field sample so the shared
     unsup helpers can look up sample keys and dedup frames by video-id.
     """
 
-    def __init__(self, base: FreelyMovingMouseDataset, ds_stride: int):
+    def __init__(self, base: OpenFieldDataset, ds_stride: int):
         self.base = base
         self.ds_stride = int(ds_stride)
         self.seq_len = int(base.seq_len)
         self.num_joints = int(base.num_joints)
-        # Freely doesn't set self.label_names — leave empty and let run_unsup
-        # fall back to FREELY_DEFAULT_LABELS.
+        # Open Field doesn't set self.label_names — leave empty and let run_unsup
+        # fall back to OPENFIELD_DEFAULT_LABELS.
         self.label_names = list(getattr(base, "label_names", []) or [])
 
     def __len__(self):
@@ -70,13 +70,13 @@ class FreelyDECWrapper(Dataset):
         return s
 
 
-def _build_freely_dataset(args, split: str) -> FreelyDECWrapper:
+def _build_openfield_dataset(args, split: str) -> OpenFieldDECWrapper:
     train_ratio = getattr(args, "finetune_train_ratio", None) or getattr(args, "train_ratio", 0.7)
     val_ratio = getattr(args, "finetune_val_ratio", None) or getattr(args, "val_ratio", 0.15)
     test_ratio = getattr(args, "finetune_test_ratio", None) or getattr(args, "test_ratio", 0.15)
     include_velocity = bool(getattr(args, "motion_include_velocity", False))
     include_confidence = bool(getattr(args, "motion_include_confidence", True))
-    base = FreelyMovingMouseDataset(
+    base = OpenFieldDataset(
         root_dir=args.data_root,
         seq_len=getattr(args, "seq_len", 128) or 128,
         ds_stride=int(getattr(args, "ds_stride", 1) or 1),
@@ -105,14 +105,14 @@ def _build_freely_dataset(args, split: str) -> FreelyDECWrapper:
         motion_include_confidence=include_confidence,
         load_frames=not bool(getattr(args, "use_vision_cache", False)),
     )
-    return FreelyDECWrapper(base, ds_stride=int(getattr(args, "ds_stride", 1) or 1))
+    return OpenFieldDECWrapper(base, ds_stride=int(getattr(args, "ds_stride", 1) or 1))
 
 
-def _freely_build_datasets(args):
-    train_ds = _build_freely_dataset(args, "train")
+def _openfield_build_datasets(args):
+    train_ds = _build_openfield_dataset(args, "train")
     args.seq_len = train_ds.seq_len
-    val_ds = _build_freely_dataset(args, "val")
-    test_ds = _build_freely_dataset(args, "test")
+    val_ds = _build_openfield_dataset(args, "val")
+    test_ds = _build_openfield_dataset(args, "test")
     label_names = list(train_ds.label_names) if train_ds.label_names else []
     num_classes = len(label_names) if label_names else int(getattr(args, "head_a_classes", 2) or 2)
     return train_ds, val_ds, test_ds, label_names, num_classes
@@ -138,7 +138,7 @@ def main(config_path: str | None = None,
         "bfloat16": torch.bfloat16,
     }
     args.torch_dtype = dtype_map.get(str(args.torch_dtype).lower(), torch.bfloat16)
-    args.dataset = "freely_mouse"
+    args.dataset = "openfield"
     if majority_map_mode is not None:
         args.majority_map_mode = majority_map_mode
     if dec_train_agg is not None:
@@ -163,12 +163,12 @@ def main(config_path: str | None = None,
         args.seed = seed
     if dec_fixes is not None:
         apply_dec_fix_overrides(args, dec_fixes)
-    run_unsup(args, _freely_build_datasets, label_names_fallback=list(FREELY_DEFAULT_LABELS))
+    run_unsup(args, _openfield_build_datasets, label_names_fallback=list(OPENFIELD_DEFAULT_LABELS))
 
 
 def _parse_cli():
-    parser = argparse.ArgumentParser(description="Freely unsupervised DEC segmentation entrypoint")
-    _add_shared_cli_args(parser, default_cfg="./config_free_finetune.yaml")
+    parser = argparse.ArgumentParser(description="Open Field unsupervised DEC segmentation entrypoint")
+    _add_shared_cli_args(parser, default_cfg="configs/openfield_finetune.yaml")
     return parser.parse_args()
 
 

@@ -11,7 +11,7 @@ Pipeline:
      apply it to train/val/test, compute single-label F1.
 
 Designed to run on a single GPU (no DDP). Launch as:
-    python -m resifuse.training.unsup_mabe --config ./config_mabe_finetune.yaml
+    python -m resifuse.training.unsup_mabe --config configs/mabe_finetune.yaml
 
 Uses the same finetune config as the supervised path; reads extra DEC knobs:
   dec_num_clusters, dec_epochs, dec_lr, dec_centers_lr, dec_kmeans_samples,
@@ -843,10 +843,10 @@ def train_one_epoch_dec(model, loader, centers, optimizer, device, args, global_
 
 def _downsample_labels_unified(labels: torch.Tensor, target_len: int, stride: int) -> torch.Tensor:
     """Strided + padded downsample that handles both multi-hot [B, T, C] and
-    single-label int [B, T] (freely).
+    single-label int [B, T] (Open Field).
 
     MaBe's `_downsample_frame_labels` assumes a trailing class axis and breaks
-    for the freely 2-D path; this unified version dispatches on dim.
+    for the Open Field 2-D path; this unified version dispatches on dim.
     """
     if labels.dim() == 3:
         return _downsample_frame_labels(labels, target_len, stride)
@@ -1356,7 +1356,7 @@ def _print_best_val_summary(test_f1_history: List[List[float]], label_names: Lis
 
 # ----------------------------------------------------------------------
 # Segbar visualization (paper-ready PDF). Style is byte-for-byte aligned
-# with scripts/unsup_eval.py:_plot_segbar so MaBe / CalMS21 / Freely
+# with scripts/unsup_eval.py:_plot_segbar so MaBe / CalMS21 / Open Field
 # figures across methods use the SAME class->color table.
 # ----------------------------------------------------------------------
 
@@ -1713,7 +1713,7 @@ def _build_run_dir_unsup(args) -> str:
 
 
 # ----------------------------------------------------------------------
-# Main runner — consumed by the sibling calms21 / freely scripts too
+# Main runner — consumed by the sibling calms21 / openfield scripts too
 # ----------------------------------------------------------------------
 
 def run_unsup(args, build_datasets_fn, label_names_fallback: List[str] | None = None):
@@ -2146,7 +2146,7 @@ def main(config_path: str | None = None,
 
 
 def _add_shared_cli_args(parser: argparse.ArgumentParser, default_cfg: str) -> None:
-    """CLI args shared by the mabe / calms21 / freely entrypoints."""
+    """CLI args shared by the mabe / calms21 / openfield entrypoints."""
     parser.add_argument("-c", "--config", default=default_cfg)
     parser.add_argument(
         "--seed", type=int, default=None,
@@ -2333,7 +2333,7 @@ def _add_shared_cli_args(parser: argparse.ArgumentParser, default_cfg: str) -> N
 
 def _parse_cli():
     parser = argparse.ArgumentParser(description="MABe unsupervised DEC segmentation entrypoint")
-    _add_shared_cli_args(parser, default_cfg="./config_mabe_finetune.yaml")
+    _add_shared_cli_args(parser, default_cfg="configs/mabe_finetune.yaml")
     return parser.parse_args()
 
 

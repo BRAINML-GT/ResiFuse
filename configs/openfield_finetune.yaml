@@ -4,8 +4,8 @@
 # ============================================================================
 # DATA PATHS & CACHE
 # ============================================================================
-cache_dir: data/freely_moving_mouse/windows
-vision_cache_dir: data/freely_moving_mouse/features_videoprism
+cache_dir: data/openfield/windows
+vision_cache_dir: data/openfield/features_videoprism
 
 use_vision_cache: true
 
@@ -16,7 +16,7 @@ cache_num_workers: 4
 # ============================================================================
 # DATASET SETTINGS
 # ============================================================================
-dataset: freely_mouse            # nose headcentre neck earl earr bodycentre bcl bcr hipl hipr tailbase tailcentre tailtip
+dataset: openfield            # nose headcentre neck earl earr bodycentre bcl bcr hipl hipr tailbase tailcentre tailtip
 num_joints: 13 
 seq_len_cache: 256        # length when building cache (cache_ds_stride applied)
 ds_stride: 4
@@ -24,7 +24,7 @@ ds_stride: 4
 label_valid_mode: any
 
 # Frame processing
-cache_frame_resize: 192   # frame size stored in the window caches (resifuse.preprocessing.freely)
+cache_frame_resize: 192   # frame size stored in the window caches (resifuse.preprocessing.openfield)
 frame_resize: 224         # frames are resized to this before VideoPrism
 
 # Data split ratios
@@ -175,8 +175,8 @@ vision_pred_loss: cosine
 # ============================================================================
 # CHECKPOINTING & LOGGING
 # ============================================================================
-pretrain_save_dir: ./checkpoints_pretrain_free
-finetune_save_dir: ./checkpoints_finetune_free
+pretrain_save_dir: ./checkpoints_pretrain_openfield
+finetune_save_dir: ./checkpoints_finetune_openfield
 
 # Save intervals
 pretrain_save_interval: 5
@@ -188,7 +188,7 @@ run_name: "videoprism"
 pretrain_ckpt: null   # set by scripts/finetune.sh and scripts/unsup.sh (PRETRAIN_CKPT)
 
 # ============================================================================
-# UNSUPERVISED DEC (resifuse/training/unsup_freely.py only; ignored by finetune)
+# UNSUPERVISED DEC (resifuse/training/unsup_openfield.py only; ignored by finetune)
 # ============================================================================
 dec_num_clusters: 30          # 2 classes × 4 — majority-map merges extras
 dec_epochs: 30
@@ -196,5 +196,5 @@ dec_lr: 1.0e-4
 dec_centers_lr: 1.0e-4
 dec_kmeans_samples: 50000
 dec_kmeans_init_iters: 50
-dec_save_dir: ./checkpoints_unsup_free
+dec_save_dir: ./checkpoints_unsup_openfield
 unsup_run_name: ""

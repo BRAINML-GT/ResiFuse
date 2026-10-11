@@ -31,7 +31,7 @@ require_ckpt() {
 
 check_dataset() {
   case $1 in
-    mabe|calms21|freely) ;;
-    *) echo "error: dataset must be mabe, calms21, or freely (got '$1')" >&2; exit 1 ;;
+    mabe|calms21|openfield) ;;
+    *) echo "error: dataset must be mabe, calms21, or openfield (got '$1')" >&2; exit 1 ;;
   esac
 }

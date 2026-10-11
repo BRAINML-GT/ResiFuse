@@ -14,7 +14,7 @@ from torch.utils.data.distributed import DistributedSampler
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.data import DataLoader
 
-from resifuse.data.datasets import FreelyMovingMouseDataset
+from resifuse.data.datasets import OpenFieldDataset
 from resifuse.models.model import ResiFuseClassifier, ResiFusePretrainer
 from torch.utils.tensorboard import SummaryWriter
 from resifuse.config import load_config_with_defaults
@@ -522,15 +522,15 @@ def train_one_epoch_pretrain(
         fetch_time += time.perf_counter() - fetch_start
         compute_start = time.perf_counter()
 
-        B, A, T, K, _ = kps.shape  # A=1 for freely single-mouse
+        B, A, T, K, _ = kps.shape  # A=1: Open Field has a single mouse
         kps_flat = kps.view(B * A, T, K, 3)
         motion_flat = motion_feats.view(B * A, T, -1)
         vision_flat = vision_feats.view(B * A, T, -1) if vision_feats is not None else None
 
-        # M-MAE mask kept Bernoulli (freely) but reshaped to [B, A, T] for mabe forward.
+        # M-MAE mask kept Bernoulli (Open Field) but reshaped to [B, A, T] for mabe forward.
         mask_ba = (torch.rand(B, A, T, device=device) < config.mask_ratio).to(dtype=config.torch_dtype)
         mask = mask_ba.view(B * A, T)  # keep [B*A, T] alias for downstream loss code
-        # Freely pretrain has no per-frame validity concept → all-valid mask.
+        # Open Field pretrain has no per-frame validity concept → all-valid mask.
         valid_mask = torch.ones(B, A, T, dtype=torch.bool, device=device)
 
         out = model(
@@ -666,7 +666,7 @@ def evaluate_pretrain(
             vision_feats = batch.get("vision_feats") if vision_pred_weight > 0.0 else None
             if vision_feats is not None:
                 vision_feats = vision_feats.to(device)
-            B, A, T, K, _ = kps.shape  # A=1 for freely
+            B, A, T, K, _ = kps.shape  # A=1 for Open Field
             kps_flat = kps.view(B * A, T, K, 3)
             motion_flat = motion_feats.view(B * A, T, -1)
             vision_flat = vision_feats.view(B * A, T, -1) if vision_feats is not None else None
@@ -975,9 +975,9 @@ def _read_labels_for_dataset(dataset, label_path: str):
     2-class (default) fuses the rearing classes. Used by the class-weight and
     dataset-stat helpers so their counts match the labels the model is trained on.
     """
-    if int(getattr(dataset, "freely_num_classes", 2)) == 3:
-        return FreelyMovingMouseDataset._read_labels_3class(label_path)
-    return FreelyMovingMouseDataset._read_labels(label_path)
+    if int(getattr(dataset, "openfield_num_classes", 2)) == 3:
+        return OpenFieldDataset._read_labels_3class(label_path)
+    return OpenFieldDataset._read_labels(label_path)
 
 
 def _compute_class_weights(dataset, head_classes: Dict[str, int], device: torch.device) -> Dict[str, torch.Tensor]:
@@ -1031,7 +1031,7 @@ def _print_dataset_stats(name: str, dataset, weights_a: torch.Tensor | None = No
         return
     ds_stride = max(1, int(getattr(dataset, "ds_stride", 1)))
     label_map = getattr(dataset, "label_map", None)
-    n3 = int(getattr(dataset, "freely_num_classes", 2)) == 3
+    n3 = int(getattr(dataset, "openfield_num_classes", 2)) == 3
     class_names = ["supported", "unsupported", "grooming"] if n3 else ["rearing", "grooming"]
     total_labeled = 0
     counts = {nm: 0 for nm in class_names}
@@ -1056,10 +1056,10 @@ def _print_dataset_stats(name: str, dataset, weights_a: torch.Tensor | None = No
 
 
 def _get_sample_key(batch, b):
-    """Unique per-window key for global_masks lookup in freely finetune.
+    """Unique per-window key for global_masks lookup in Open Field finetune.
 
     Mirrors the mabe (video_id, window_idx, mouse_id) composite key, but for
-    freely single-mouse data we use (stem, start, end) — stem identifies the
+    Open Field single-mouse data we use (stem, start, end) — stem identifies the
     video and (start, end) identify the window within it.
     """
     def _scalar(val, b, default=0):
@@ -1184,7 +1184,7 @@ def train_one_epoch_finetune(
             vision_feats=vision_feats,
             frame_select_mask=frame_select_mask,
         )
-        # Wrap mabe's single-logits output into freely's multi-head dict form
+        # Wrap mabe's single-logits output into Open Field's multi-head dict form
         # so compute_seq_cls_loss keeps working verbatim.
         logits_seq = {"A": out["logits"]}
         L = logits_seq["A"].shape[1]
@@ -1486,7 +1486,7 @@ def run_pretrain(args):
     vision_feat_dir = getattr(args, "vision_cache_dir", None)
     if is_main:
         print(f"[Pretrain] vision_feat_dir={vision_feat_dir}")
-    train_ds = FreelyMovingMouseDataset(
+    train_ds = OpenFieldDataset(
         root_dir=args.data_root,
         seq_len=args.seq_len,
         ds_stride=getattr(args, "ds_stride", 1),
@@ -1514,7 +1514,7 @@ def run_pretrain(args):
         motion_include_confidence=include_confidence,
     )
     motion_scaler = train_ds.motion_scaler if getattr(args, "use_motion_scaler", False) else None
-    val_ds = FreelyMovingMouseDataset(
+    val_ds = OpenFieldDataset(
         root_dir=args.data_root,
         seq_len=args.seq_len,
         ds_stride=getattr(args, "ds_stride", 1),
@@ -1542,7 +1542,7 @@ def run_pretrain(args):
         motion_include_velocity=include_velocity,
         motion_include_confidence=include_confidence,
     )
-    test_ds = FreelyMovingMouseDataset(
+    test_ds = OpenFieldDataset(
         root_dir=args.data_root,
         seq_len=args.seq_len,
         ds_stride=getattr(args, "ds_stride", 1),
@@ -1933,12 +1933,12 @@ def maybe_load_pretrain_weights(model: ResiFuseClassifier, ckpt_path: str, devic
     print(f"Loaded pretrain ckpt with missing keys: {missing}, unexpected keys: {unexpected}")
 
 def run_finetune(args):
-    # 3-class Open-Field diagnostic: head A must output freely_num_classes logits.
-    # Enforce head_a_classes == freely_num_classes so the model head, loss, and F1
+    # 3-class Open-Field diagnostic: head A must output openfield_num_classes logits.
+    # Enforce head_a_classes == openfield_num_classes so the model head, loss, and F1
     # all agree (the model builds social/vision cls heads from config.head_a_classes).
-    _fn_classes = int(getattr(args, "freely_num_classes", 2))
+    _fn_classes = int(getattr(args, "openfield_num_classes", 2))
     if _fn_classes >= 2 and int(getattr(args, "head_a_classes", 2)) != _fn_classes:
-        print(f"[Finetune] freely_num_classes={_fn_classes} -> forcing head_a_classes "
+        print(f"[Finetune] openfield_num_classes={_fn_classes} -> forcing head_a_classes "
               f"{getattr(args, 'head_a_classes', None)} -> {_fn_classes}")
         args.head_a_classes = _fn_classes
     train_ratio = args.finetune_train_ratio if args.finetune_train_ratio is not None else args.train_ratio
@@ -1973,7 +1973,7 @@ def run_finetune(args):
         active_heads = ["A"]
     if is_main:
         print(f"[Finetune] Active heads for logging: {active_heads}")
-    train_ds = FreelyMovingMouseDataset(
+    train_ds = OpenFieldDataset(
         root_dir=args.data_root,
         seq_len=args.seq_len,
         ds_stride=getattr(args, "ds_stride", 1),
@@ -1985,7 +1985,7 @@ def run_finetune(args):
         val_ratio=val_ratio,
         test_ratio=test_ratio,
         stage="finetune",
-        freely_num_classes=int(getattr(args, "freely_num_classes", 2)),
+        openfield_num_classes=int(getattr(args, "openfield_num_classes", 2)),
         dtype=args.torch_dtype,
         max_neighbors=args.max_neighbors,
         use_neighbor_feats=args.use_neighbor_feats,
@@ -2004,7 +2004,7 @@ def run_finetune(args):
         load_frames=not bool(getattr(args, "use_vision_cache", False)),
     )
     motion_scaler = train_ds.motion_scaler if getattr(args, "use_motion_scaler", False) else None
-    val_ds = FreelyMovingMouseDataset(
+    val_ds = OpenFieldDataset(
         root_dir=args.data_root,
         seq_len=args.seq_len,
         ds_stride=getattr(args, "ds_stride", 1),
@@ -2016,7 +2016,7 @@ def run_finetune(args):
         val_ratio=val_ratio,
         test_ratio=test_ratio,
         stage="finetune",
-        freely_num_classes=int(getattr(args, "freely_num_classes", 2)),
+        openfield_num_classes=int(getattr(args, "openfield_num_classes", 2)),
         dtype=args.torch_dtype,
         max_neighbors=args.max_neighbors,
         use_neighbor_feats=args.use_neighbor_feats,
@@ -2035,7 +2035,7 @@ def run_finetune(args):
         motion_include_confidence=include_confidence,
         load_frames=not bool(getattr(args, "use_vision_cache", False)),
     )
-    test_ds = FreelyMovingMouseDataset(
+    test_ds = OpenFieldDataset(
         root_dir=args.data_root,
         seq_len=args.seq_len,
         ds_stride=getattr(args, "ds_stride", 1),
@@ -2047,7 +2047,7 @@ def run_finetune(args):
         val_ratio=val_ratio,
         test_ratio=test_ratio,
         stage="finetune",
-        freely_num_classes=int(getattr(args, "freely_num_classes", 2)),
+        openfield_num_classes=int(getattr(args, "openfield_num_classes", 2)),
         dtype=args.torch_dtype,
         max_neighbors=args.max_neighbors,
         use_neighbor_feats=args.use_neighbor_feats,
@@ -2200,7 +2200,7 @@ def run_finetune(args):
     # Global frame-selection masks (ported verbatim from resifuse/training/mabe.py).
     # With budget_ratio=0.25 + frame_select_mode=residual, we compute a
     # dataset-level threshold once at epoch 0 and reuse it every epoch.
-    # Freely has no Phase 1/Phase 2, so all modes can run at epoch 0.
+    # Open Field has no Phase 1/Phase 2, so all modes can run at epoch 0.
     # ========================================================================
     base_model = _get_base_model(model)
     frame_select_mode = str(getattr(args, "frame_select_mode", "residual")).lower()
@@ -2214,8 +2214,8 @@ def run_finetune(args):
         """Compute global frame selection masks for all windows.
 
         Port of resifuse/training/mabe.py::_compute_global_masks. The only adaptation
-        for freely is the per-sample key — we use (stem, start, end) instead of
-        mabe's (video_id, mouse_id, window_idx) since freely is single-mouse.
+        for Open Field is the per-sample key — we use (stem, start, end) instead of
+        mabe's (video_id, mouse_id, window_idx) since Open Field is single-mouse.
 
         Modes:
           - uncertainty: select frames with lowest motion |logit|
@@ -2340,7 +2340,7 @@ def run_finetune(args):
             )
         return masks
 
-    # One-time global masks computation (freely runs all modes at epoch 0).
+    # One-time global masks computation (Open Field runs all modes at epoch 0).
     global_masks = None
     if use_global_masks:
         if is_main:
@@ -2702,7 +2702,7 @@ def run_finetune(args):
     # ========== Summary: test F1 at the epoch with the best head-A val macro F1 ==========
     if is_main and test_f1_history_A and len(val_macro_history_A) == len(test_f1_history_A):
         num_classes_A = len(test_f1_history_A[0])
-        # Freely head A: fused Rearing (Supported+Unsupported) vs Grooming.
+        # Open Field head A: fused Rearing (Supported+Unsupported) vs Grooming.
         summary_label_names = ["Rearing", "Grooming"][:num_classes_A]
         best_ep = max(range(len(val_macro_history_A)), key=lambda e: val_macro_history_A[e])
         best_f1 = test_f1_history_A[best_ep]
@@ -2757,8 +2757,13 @@ def run_finetune(args):
             f"(cls={final_test['cls']:.5f}, sparse={final_test['sparse']:.5f}, count={final_test['count']:.5f}) "
             f"| acc={final_test['acc']:.4f}{pred_tag}"
         )
+        head_a_names = ["Supported", "Unsupported", "Grooming"]
+        if getattr(args, "head_a_classes", 3) == 2:
+            head_a_names = ["Rearing", "Grooming"]
+        elif getattr(args, "head_a_classes", 3) == 1:
+            head_a_names = ["Rearing"]
         label_names = {
-            "A": ["Supported", "Unsupported", "Grooming"] if "A" in active_heads else [],
+            "A": head_a_names if "A" in active_heads else [],
             "B": [f"B{i}" for i in range(len(test_f1.get("B", [])))] if "B" in active_heads else [],
             "C": [f"C{i}" for i in range(len(test_f1.get("C", [])))] if "C" in active_heads else [],
         }

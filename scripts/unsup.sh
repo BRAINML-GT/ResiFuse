@@ -2,16 +2,16 @@
 # Unsupervised behavior segmentation (DEC on the fused representation) with
 # residual-guided frame selection.
 #
-#   [PRETRAIN_CKPT=<pretrain .pth>] bash scripts/unsup.sh <mabe|calms21|freely> <budget> [seed] [select]
+#   [PRETRAIN_CKPT=<pretrain .pth>] bash scripts/unsup.sh <mabe|calms21|openfield> <budget> [seed] [select]
 #
 #   PRETRAIN_CKPT  default checkpoints/resifuse_pretrain_<dataset>.pth (the released weights)
 #
 #   budget  fraction of frames that receive vision, in [0, 1]
-#           (paper, Table 1: freely 0.25, calms21 0.75, mabe 0.75)
+#           (paper, Table 1: openfield 0.25, calms21 0.75, mabe 0.75)
 #   select  residual (default) | uniform
 #
 # DEC settings follow the paper's appendix: 30 epochs and K = 50 / 50 / 30
-# (mabe / calms21 / freely, from the config); VICReg 0.5 / 1.0 / 0.1;
+# (mabe / calms21 / openfield, from the config); VICReg 0.5 / 1.0 / 0.1;
 # per-epoch target distribution on the full training set; empty-cluster
 # reseeding; uniform k-means sampling; the visual term centered by a fixed
 # training-set mean. The log ends with the test F1 of the epoch with the best
@@ -38,7 +38,7 @@ DEC_FIXES="--dec-freeze-vision-center --dec-kmeans-random-sample --dec-target-up
 case ${DATASET} in
   mabe)    ARGS="--dec-train-agg per_animal --dec-eval-agg mean" ;;
   calms21) ARGS="--dec-train-agg concat --dec-eval-agg concat --majority-map-mode f1" ;;
-  freely)  ARGS="--dec-train-agg concat --dec-eval-agg concat --majority-map-mode f1" ;;
+  openfield)  ARGS="--dec-train-agg concat --dec-eval-agg concat --majority-map-mode f1" ;;
 esac
 
 RUN=${DATASET}_b${BUDGET}_${SELECT}_s${SEED}

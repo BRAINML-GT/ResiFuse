@@ -10,7 +10,7 @@ imported as-is from train_entry_mabe to avoid drift.
 
 Usage mirrors MaBe:
     torchrun --nproc_per_node=N --master_port $MP -m resifuse.training.calms21 \
-        --config ./config_calms21_pretrain.yaml
+        --config configs/calms21_pretrain.yaml
 or via the dispatcher resifuse/train.py when dataset=calms21.
 """
 from __future__ import annotations
@@ -1216,7 +1216,7 @@ def _main_worker(args):
 
 def _parse_cli() -> str:
     parser = argparse.ArgumentParser(description="CalMS21 training entrypoint")
-    parser.add_argument("-c", "--config", default="./config_calms21_finetune.yaml")
+    parser.add_argument("-c", "--config", default="configs/calms21_finetune.yaml")
     ns = parser.parse_args()
     return ns.config
 

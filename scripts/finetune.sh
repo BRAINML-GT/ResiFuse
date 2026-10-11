@@ -1,12 +1,12 @@
 #!/bin/bash
 # Supervised behavior classification with residual-guided frame selection.
 #
-#   [PRETRAIN_CKPT=<pretrain .pth>] bash scripts/finetune.sh <mabe|calms21|freely> <budget> [seed] [select]
+#   [PRETRAIN_CKPT=<pretrain .pth>] bash scripts/finetune.sh <mabe|calms21|openfield> <budget> [seed] [select]
 #
 #   PRETRAIN_CKPT  default checkpoints/resifuse_pretrain_<dataset>.pth (the released weights)
 #
 #   budget  fraction of frames that receive vision, in [0, 1]
-#           (paper, Table 1: freely 0.75, calms21 1.0, mabe 0.75)
+#           (paper, Table 1: openfield 0.75, calms21 1.0, mabe 0.75)
 #   select  residual (default) | uniform
 #
 # Outputs: runs/finetune/<dataset>_b<budget>_<select>_s<seed>/{config.yaml,train.log}

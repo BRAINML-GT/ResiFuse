@@ -1,7 +1,7 @@
 import argparse
 from types import SimpleNamespace
 
-from resifuse.training.freely import main as freely_main
+from resifuse.training.openfield import main as openfield_main
 from resifuse.training.mabe import main as mabe_main
 from resifuse.training.calms21 import main as calms21_main
 from resifuse.config import load_config_with_defaults
@@ -31,13 +31,13 @@ def main():
     cli_args = parse_args()
     cfg = load_config_with_defaults(cli_args.config)
     args = SimpleNamespace(**cfg)
-    dataset_name = str(getattr(args, "dataset", "freely_mouse") or "freely_mouse").lower()
+    dataset_name = str(getattr(args, "dataset", "openfield") or "openfield").lower()
     if dataset_name.startswith("calms21") or dataset_name.startswith("calsm21"):
         calms21_main(cli_args.config, seed=cli_args.seed)
     elif dataset_name.startswith("mabe"):
         mabe_main(cli_args.config, seed=cli_args.seed)
     else:
-        freely_main(cli_args.config, seed=cli_args.seed)
+        openfield_main(cli_args.config, seed=cli_args.seed)
 
 
 if __name__ == "__main__":

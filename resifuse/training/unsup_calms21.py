@@ -10,7 +10,7 @@ majority-map-based F1, best-val epoch summary — is imported from
 resifuse.training.unsup_mabe.
 
 Usage:
-    python -m resifuse.training.unsup_calms21 --config ./config_calms21_finetune.yaml
+    python -m resifuse.training.unsup_calms21 --config configs/calms21_finetune.yaml
 """
 from __future__ import annotations
 
@@ -120,7 +120,7 @@ def main(config_path: str | None = None,
 
 def _parse_cli():
     parser = argparse.ArgumentParser(description="CalMS21 unsupervised DEC segmentation entrypoint")
-    _add_shared_cli_args(parser, default_cfg="./config_calms21_finetune.yaml")
+    _add_shared_cli_args(parser, default_cfg="configs/calms21_finetune.yaml")
     return parser.parse_args()
 
 

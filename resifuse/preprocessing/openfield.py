@@ -7,11 +7,11 @@ extractor read, under ``cache_dir`` of the config:
         motion features, labels and video frames resized to cache_frame_resize
     <cache_dir>/<stage>_<split>_meta.json, <stage>_all_meta.json   window lists
 
-Windows and the 50/10/40 video split come from FreelyMovingMouseDataset
+Windows and the 50/10/40 video split come from OpenFieldDataset
 (seq_len_cache frames per window, half-window stride for pretraining):
 
-    python -m resifuse.preprocessing.freely --config configs/freely_pretrain.yaml
-    python -m resifuse.preprocessing.freely --config configs/freely_finetune.yaml
+    python -m resifuse.preprocessing.openfield --config configs/openfield_pretrain.yaml
+    python -m resifuse.preprocessing.openfield --config configs/openfield_finetune.yaml
 """
 
 import argparse
@@ -24,7 +24,7 @@ import torch
 from torch.utils.data import DataLoader, Subset
 
 from resifuse.config import load_config_with_defaults
-from resifuse.data.datasets import FreelyMovingMouseDataset
+from resifuse.data.datasets import OpenFieldDataset
 
 DTYPES = {"float32": torch.float32, "float": torch.float32, "fp32": torch.float32,
           "float16": torch.float16, "fp16": torch.float16, "half": torch.float16,
@@ -73,7 +73,7 @@ def cache_split(args, stage: str, split: str, limit: int | None = None):
     train_ratio, val_ratio, test_ratio = _split_ratios(args, stage)
     frame_resize = getattr(args, "cache_frame_resize", None) or getattr(args, "frame_resize", None)
     seq_len = getattr(args, "seq_len_cache", args.seq_len)
-    ds = FreelyMovingMouseDataset(
+    ds = OpenFieldDataset(
         root_dir=args.data_root,
         seq_len=seq_len,
         ds_stride=getattr(args, "cache_ds_stride", 1),
@@ -103,7 +103,7 @@ def cache_split(args, stage: str, split: str, limit: int | None = None):
     window_counts = [0] * num_classes  # labeled frames per class inside the cached windows
     if stage == "finetune":
         for entry in ds.samples:
-            for v in FreelyMovingMouseDataset._read_labels(entry["labels"]):
+            for v in OpenFieldDataset._read_labels(entry["labels"]):
                 if v in (1, 2):    # 1 = Rearing, 2 = Grooming
                     raw_counts[int(v) - 1] += 1
 
@@ -159,7 +159,7 @@ def cache_split(args, stage: str, split: str, limit: int | None = None):
 
 def main():
     p = argparse.ArgumentParser(description="Build the Open Field window caches.")
-    p.add_argument("--config", required=True, help="configs/freely_{pretrain,finetune}.yaml")
+    p.add_argument("--config", required=True, help="configs/openfield_{pretrain,finetune}.yaml")
     p.add_argument("--stage", choices=["pretrain", "finetune", "both"], default=None,
                    help="default: `stage` of the config")
     p.add_argument("--splits", nargs="+", default=None, help="default: `splits` of the config")

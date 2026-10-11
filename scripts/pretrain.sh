@@ -3,7 +3,7 @@
 # vision prediction).
 #
 #   [RUN_DIR=<dir>] [SAVE_INTERVAL=<epochs>] [SEED=<int>] [CONFIG_OVERRIDES="key=value ..."] \
-#     bash scripts/pretrain.sh <mabe|calms21|freely> [num_gpus]
+#     bash scripts/pretrain.sh <mabe|calms21|openfield> [num_gpus]
 #
 # Without RUN_DIR, checkpoints go to a new timestamped directory under the
 # pretrain_save_dir of configs/<dataset>_pretrain.yaml. With RUN_DIR, they go
@@ -16,7 +16,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 source scripts/common.sh
 
-DATASET=${1:?usage: [RUN_DIR=<dir>] bash scripts/pretrain.sh <mabe|calms21|freely> [num_gpus]}
+DATASET=${1:?usage: [RUN_DIR=<dir>] bash scripts/pretrain.sh <mabe|calms21|openfield> [num_gpus]}
 NGPU=${2:-1}
 check_dataset "${DATASET}"
 

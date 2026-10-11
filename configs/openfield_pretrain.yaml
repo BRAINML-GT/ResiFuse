@@ -4,8 +4,8 @@
 # ============================================================================
 # DATA PATHS & CACHE
 # ============================================================================
-cache_dir: data/freely_moving_mouse/windows
-vision_cache_dir: data/freely_moving_mouse/features_videoprism
+cache_dir: data/openfield/windows
+vision_cache_dir: data/openfield/features_videoprism
 
 use_vision_cache: true
 
@@ -16,7 +16,7 @@ cache_num_workers: 4
 # ============================================================================
 # DATASET SETTINGS
 # ============================================================================
-dataset: freely_mouse
+dataset: openfield
 num_joints: 13            # nose headcentre neck earl earr bodycentre bcl bcr hipl hipr tailbase tailcentre tailtip
 
 # Sequence & window settings
@@ -24,7 +24,7 @@ seq_len_cache: 256        # length when building cache (cache_ds_stride applied)
 ds_stride: 4
 
 # Frame processing
-cache_frame_resize: 192   # frame size stored in the window caches (resifuse.preprocessing.freely)
+cache_frame_resize: 192   # frame size stored in the window caches (resifuse.preprocessing.openfield)
 frame_resize: 224         # frames are resized to this before VideoPrism
 
 label_valid_mode: any
@@ -153,8 +153,8 @@ vision_vres_weight: 0.0
 # ============================================================================
 # CHECKPOINTING & LOGGING
 # ============================================================================
-pretrain_save_dir: ./checkpoints_pretrain_free
-finetune_save_dir: ./checkpoints_finetune_free
+pretrain_save_dir: ./checkpoints_pretrain_openfield
+finetune_save_dir: ./checkpoints_finetune_openfield
 
 # Save intervals
 pretrain_save_interval: 25

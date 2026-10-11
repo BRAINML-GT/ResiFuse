@@ -1,4 +1,4 @@
-"""Dataset helpers for VideoPrism cache extraction (MABe / Freely / CalMS21).
+"""Dataset helpers for VideoPrism cache extraction (MABe / Open Field / CalMS21).
 
 Provides a small, JAX-env-safe surface for the three datasets used in this
 project. Intentionally does NOT import `modules` (which requires
@@ -20,7 +20,7 @@ from typing import Dict, List, Sequence
 import torch
 
 from resifuse.config import DEFAULT_CONFIG, load_config
-from resifuse.data.datasets import CalMS21Dataset, FreelyMovingMouseDataset, MaBeMouseDataset
+from resifuse.data.datasets import CalMS21Dataset, OpenFieldDataset, MaBeMouseDataset
 
 
 # ----------------------------------------------------------------------
@@ -30,7 +30,7 @@ from resifuse.data.datasets import CalMS21Dataset, FreelyMovingMouseDataset, MaB
 def load_cfg(path: str) -> dict:
     cfg = copy.deepcopy(DEFAULT_CONFIG)
     cfg.update(load_config(path))
-    # Match resifuse/features/hf_freely.py behaviour: if the config
+    # Match resifuse/features/hf_openfield.py behaviour: if the config
     # defines split-specific seq lengths, normalize them.
     if "seq_len_cache" not in cfg:
         cfg["seq_len_cache"] = cfg.get("seq_len", DEFAULT_CONFIG.get("seq_len", 32))
@@ -122,10 +122,10 @@ def _parse_dtype(s: str | None) -> torch.dtype:
     return m.get((s or "").lower(), torch.float32)
 
 
-def build_dataset_freely(cfg: dict, stage: str, split: str) -> FreelyMovingMouseDataset:
+def build_dataset_openfield(cfg: dict, stage: str, split: str) -> OpenFieldDataset:
     data_root = cfg.get("data_root")
     if not data_root:
-        raise RuntimeError("data_root must be set in config for Freely Moving Mouse dataset.")
+        raise RuntimeError("data_root must be set in config for Open Field dataset.")
     if stage == "finetune":
         ft_train = cfg.get("finetune_train_ratio")
         ft_val = cfg.get("finetune_val_ratio")
@@ -137,7 +137,7 @@ def build_dataset_freely(cfg: dict, stage: str, split: str) -> FreelyMovingMouse
         train_ratio = cfg.get("train_ratio", 0.8)
         val_ratio = cfg.get("val_ratio", 0.1)
         test_ratio = cfg.get("test_ratio", 0.1)
-    return FreelyMovingMouseDataset(
+    return OpenFieldDataset(
         root_dir=data_root,
         seq_len=cfg.get("seq_len", 32),
         ds_stride=cfg.get("ds_stride", 1),
@@ -176,8 +176,8 @@ def build_video_index(ds) -> Dict[str, List[int]]:
     return out
 
 
-def freely_cache_entries(ds):
-    """Freely uses ds.cache_entries for its per-window layout. Returns the
+def openfield_cache_entries(ds):
+    """Open Field uses ds.cache_entries for its per-window layout. Returns the
     list or None if the dataset lacks it (pre-cache mode)."""
     return getattr(ds, "cache_entries", None)
 

@@ -5,7 +5,7 @@ from typing import Any, Dict
 
 DEFAULT_CONFIG: Dict[str, Any] = {
     # Data paths
-    "data_root": "data/freely_moving_mouse",
+    "data_root": "data/openfield",
     "cache_dir": None,
     "mabe_data_dir": None,
     "mabe_label_file": None,
@@ -27,7 +27,7 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "num_joints": None,
     "conf_mask_thresh": 0.3,
     "num_workers": 2,
-    "dataset": "freely_mouse",
+    "dataset": "openfield",
     "min_body_length": 10.0,
     "frame_resize": None,        # optional (H, W) or int; applied at load time even when using cache
     "frame_resize_align": 32,

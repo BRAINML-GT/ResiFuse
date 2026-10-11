@@ -4,7 +4,7 @@
   "respect_official": true,
   "val_carved_from": "official_train",
   "val_carve_ratio": 0.1,
-  "note": "Video mouse036_task1_annotator1 excluded: source mp4 is truncated to 96 frames and the ethozoom windowing (min_valid_len=128) drops it. This is a known issue with task1_classic_classification as released on figshare.",
+  "note": "Video mouse036_task1_annotator1 excluded: source mp4 is truncated to 96 frames and the ResiFuse windowing (min_valid_len=128) drops it. This is a known issue with task1_classic_classification as released on figshare.",
   "splits": {
     "train": [
       "mouse001_task1_annotator1",

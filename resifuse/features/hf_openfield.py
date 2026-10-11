@@ -21,7 +21,7 @@ import numpy as np
 import torch
 
 from resifuse.config import DEFAULT_CONFIG, load_config
-from resifuse.data.datasets import FreelyMovingMouseDataset, MaBeMouseDataset
+from resifuse.data.datasets import OpenFieldDataset, MaBeMouseDataset
 # Reuse encoder wrappers + helpers from precompute_mabe_cache to keep the
 # two pipelines in lock-step.
 from resifuse.features.hf_mabe import (
@@ -66,7 +66,7 @@ def ensure_dir(path: str):
 
 
 def build_dataset(cfg: dict, stage: str, split: str):
-    dataset_name = str(cfg.get("dataset", "freely_mouse") or "freely_mouse").lower()
+    dataset_name = str(cfg.get("dataset", "openfield") or "openfield").lower()
     if stage == "finetune":
         ft_train = cfg.get("finetune_train_ratio")
         ft_val = cfg.get("finetune_val_ratio")
@@ -103,7 +103,7 @@ def build_dataset(cfg: dict, stage: str, split: str):
             frame_resize_align=cfg.get("frame_resize_align", 32),
         )
     else:
-        ds = FreelyMovingMouseDataset(
+        ds = OpenFieldDataset(
             root_dir=cfg["data_root"],
             seq_len=cfg.get("seq_len", 32),
             ds_stride=cfg.get("ds_stride", 1),
@@ -258,7 +258,7 @@ def process_split(
             offset += A_i
             # Save as .npy sidecar for mmap-friendly loading in the
             # dataset. Matches the MaBe cache layout so the shared
-            # fast-path in FreelyMovingMouseDataset works unchanged.
+            # fast-path in OpenFieldDataset works unchanged.
             feats_np = _to_numpy_contiguous(feats_sample.to(dtype=autocast_dtype or feats_flat.dtype))
             np.save(m["npy_out"], feats_np)
             processed += 1
@@ -445,7 +445,7 @@ def _run_shard(
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Precompute vision features (.npy sidecars) for cached Freely windows.")
+    parser = argparse.ArgumentParser(description="Precompute vision features (.npy sidecars) for cached Open Field windows.")
     parser.add_argument("--config", type=str, default="./config.yaml", help="Path to config.yaml.")
     parser.add_argument("--stage", type=str, choices=["pretrain", "finetune"], default=None, help="Stage to process.")
     parser.add_argument("--splits", nargs="+", default=["train", "val", "test"], help="Splits to process (train/val/test).")
@@ -463,7 +463,7 @@ def main():
     parser.add_argument("--overwrite", action="store_true", help="Recompute features even if .npy exists.")
     parser.add_argument("--max-samples", type=int, default=None, help="Optional cap for quick tests.")
     parser.add_argument("--batch-size", type=int, default=1, help="Number of cached windows per vision forward.")
-    parser.add_argument("--dataset", type=str, default=None, help="Dataset type: freely_mouse or mabe.")
+    parser.add_argument("--dataset", type=str, default=None, help="Dataset type: openfield or mabe.")
     parser.add_argument("--mabe-data-dir", type=str, default=None, help="MABe output root (contains pretrain/finetune).")
     parser.add_argument(
         "--encoder",
@@ -501,10 +501,10 @@ def main():
         cfg["mabe_data_dir"] = args.mabe_data_dir
     stage = args.stage or cfg.get("stage", "pretrain")
     splits: Sequence[str] = args.splits or cfg.get("splits", ["train", "val", "test"])
-    dataset_name = str(cfg.get("dataset", "freely_mouse") or "freely_mouse").lower()
+    dataset_name = str(cfg.get("dataset", "openfield") or "openfield").lower()
     if dataset_name.startswith("mabe"):
         raise NotImplementedError(
-            "Use resifuse/features/hf_mabe.py for MABe vision caching; this script targets freely_mouse."
+            "Use resifuse/features/hf_mabe.py for MABe vision caching; this script targets openfield."
         )
     cache_root = cfg.get("cache_dir")
     if not cache_root:

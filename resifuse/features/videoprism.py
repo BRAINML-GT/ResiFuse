@@ -1,4 +1,4 @@
-"""Standalone JAX/Flax VideoPrism feature extractor for MABe / Freely / CalMS21.
+"""Standalone JAX/Flax VideoPrism feature extractor for MABe / Open Field / CalMS21.
 
 VideoPrism (Zhao et al., ICML 2024) is distributed as JAX/Flax weights only —
 its custom temporal-attention layers cannot be directly loaded into HF
@@ -8,12 +8,12 @@ cache files that the downstream pretrain / finetune pipeline consumes with
 zero changes.
 
 Supports three datasets:
-  mabe     — per-video windows laid out under {cache}/{stage}/{split}/
-             (pretrain | finetune stage)
-  calms21  — per-video windows laid out under {cache}/{split}/
-             (no stage dimension)
-  freely   — per-window sidecars keyed by ds.cache_entries[i]["relpath"]
-             (same layout resifuse/features/hf_freely.py produces)
+  mabe       — per-video windows laid out under {cache}/{stage}/{split}/
+               (pretrain | finetune stage)
+  calms21    — per-video windows laid out under {cache}/{split}/
+               (no stage dimension)
+  openfield  — per-window sidecars keyed by ds.cache_entries[i]["relpath"]
+               (same layout resifuse/features/hf_openfield.py produces)
 
 Output formats match the existing torch-based precompute scripts exactly so
 the downstream pipeline doesn't need to know which runtime produced them.
@@ -31,19 +31,19 @@ Usage
 -----
   # MABe (same CLI style as resifuse/features/hf_mabe.py)
   python3 -m resifuse.features.videoprism --dataset mabe \
-      --config ./config_mabe_pretrain.yaml \
+      --config configs/mabe_pretrain.yaml \
       --stage pretrain --splits train val test \
       --devices 0,1,2,3 --overwrite
 
   # CalMS21 (no stage)
   python3 -m resifuse.features.videoprism --dataset calms21 \
-      --config ./config_calms21_pretrain.yaml \
+      --config configs/calms21_pretrain.yaml \
       --splits train val test \
       --devices 0 --overwrite
 
-  # Freely moving mouse
-  python3 -m resifuse.features.videoprism --dataset freely \
-      --config ./config_free_pretrain.yaml \
+  # Open Field
+  python3 -m resifuse.features.videoprism --dataset openfield \
+      --config configs/openfield_pretrain.yaml \
       --stage pretrain --splits train val test \
       --devices 0,1 --overwrite
 """
@@ -62,9 +62,9 @@ import torch.nn.functional as F
 from resifuse.features.videoprism_datasets import (
     build_dataset_mabe,
     build_dataset_calms21,
-    build_dataset_freely,
+    build_dataset_openfield,
     build_video_index,
-    freely_cache_entries,
+    openfield_cache_entries,
     load_cfg,
     _extract_sample_payload,
     _render_progress,
@@ -257,7 +257,7 @@ def _process_video_windowed(
     return N
 
 
-def _process_one_freely_window(
+def _process_one_openfield_window(
     ds,
     idx: int,
     save_root: str,
@@ -267,17 +267,17 @@ def _process_one_freely_window(
     clip_length: int,
     image_size: int,
 ) -> bool:
-    """Used by Freely: mirror of resifuse/features/hf_freely.py output layout.
+    """Used by Open Field: mirror of resifuse/features/hf_openfield.py output layout.
 
-    For each dataset index, Freely exposes cache_entries[idx]["relpath"] or
+    For each dataset index, Open Field exposes cache_entries[idx]["relpath"] or
     (video_id, mouse_id, window_idx) which we turn into a sidecar npy.
     """
-    cache_entries = freely_cache_entries(ds)
+    cache_entries = openfield_cache_entries(ds)
     if cache_entries is not None:
         entry = cache_entries[idx]
         relpath = entry.get("relpath") or entry.get("path")
         if relpath is None:
-            raise KeyError("Freely cache_entries[idx] missing relpath/path.")
+            raise KeyError("Open Field cache_entries[idx] missing relpath/path.")
     else:
         samples = getattr(ds, "samples", [])
         if idx >= len(samples):
@@ -414,26 +414,26 @@ def _run_shard_calms21(device_idx, shard_video_ids, cfg_path, split, cache_root,
             _sanity_check(out_dir, prefix, f"{vid}_*_vision.npy")
 
 
-def _run_shard_freely(device_idx, shard_indices, cfg_path, stage, split, save_root,
+def _run_shard_openfield(device_idx, shard_indices, cfg_path, stage, split, save_root,
                       variant, clip_length, image_size, overwrite):
     os.environ["CUDA_VISIBLE_DEVICES"] = str(device_idx)
     _configure_jax_env_before_import()
     cfg = load_cfg(cfg_path)
-    ds = build_dataset_freely(cfg, stage=stage, split=split)
+    ds = build_dataset_openfield(cfg, stage=stage, split=split)
 
     jit_apply, params = _load_and_warm_jax(variant, clip_length, image_size, device_idx)
-    prefix = f"[Cache][freely][{stage}/{split}][videoprism][gpu{device_idx}]"
+    prefix = f"[Cache][openfield][{stage}/{split}][videoprism][gpu{device_idx}]"
     print(f"{prefix} assigned {len(shard_indices)} windows → {save_root}", flush=True)
     first_checked = False
     first_out_dir = None
     for k, idx in enumerate(shard_indices, 1):
-        wrote = _process_one_freely_window(
+        wrote = _process_one_openfield_window(
             ds, idx, save_root, overwrite,
             jit_apply, params, clip_length, image_size,
         )
         if wrote and not first_checked:
             # Record first real output dir for sanity scan later.
-            entries = freely_cache_entries(ds)
+            entries = openfield_cache_entries(ds)
             if entries is not None:
                 relpath = entries[idx].get("relpath") or entries[idx].get("path")
             else:
@@ -466,12 +466,12 @@ def _split_round_robin(items, n):
 def main():
     parser = argparse.ArgumentParser(description="JAX/Flax VideoPrism feature extractor.")
     parser.add_argument("--dataset", type=str, required=True,
-                        choices=["mabe", "calms21", "freely"],
+                        choices=["mabe", "calms21", "openfield"],
                         help="Which dataset to extract features for.")
     parser.add_argument("--config", type=str, required=True,
                         help="Config yaml matching the dataset.")
     parser.add_argument("--stage", type=str, choices=["pretrain", "finetune"], default="pretrain",
-                        help="Only relevant for mabe / freely. Ignored for calms21.")
+                        help="Only relevant for mabe / openfield. Ignored for calms21.")
     parser.add_argument("--splits", nargs="+", default=["train", "val", "test"])
     parser.add_argument("--overwrite", action="store_true")
     parser.add_argument("--variant", type=str, default="videoprism_public_v1_large",
@@ -483,7 +483,7 @@ def main():
                         help="Override cache root. Defaults to the dataset-appropriate "
                              "config entry (mabe→mabe_data_cache_dir, "
                              "calms21→calms21_cache_dir, "
-                             "freely→vision_cache_dir or cache_dir).")
+                             "openfield→vision_cache_dir or cache_dir).")
     parser.add_argument("--devices", type=str, default="0",
                         help="Comma-separated CUDA indices for multi-GPU sharding.")
     args = parser.parse_args()
@@ -497,7 +497,7 @@ def main():
         cache_root = cfg.get("mabe_data_cache_dir")
     elif args.dataset == "calms21":
         cache_root = cfg.get("calms21_cache_dir")
-    else:  # freely
+    else:  # openfield
         cache_root = cfg.get("vision_cache_dir") or cfg.get("cache_dir")
     if not cache_root:
         raise RuntimeError(
@@ -537,14 +537,14 @@ def main():
             print(f"[VideoPrism] {len(video_ids)} videos → sharded across {len(device_ids)} GPUs",
                   flush=True)
 
-        else:  # freely
-            ds = build_dataset_freely(cfg, stage=args.stage, split=split)
-            # Freely shards by raw dataset index (each entry is a window).
+        else:  # openfield
+            ds = build_dataset_openfield(cfg, stage=args.stage, split=split)
+            # Open Field shards by raw dataset index (each entry is a window).
             total = len(ds)
             all_indices = list(range(total))
             del ds
             shards_or_ids = _split_round_robin(all_indices, len(device_ids))
-            shard_worker = _run_shard_freely
+            shard_worker = _run_shard_openfield
             shard_args_tpl = (args.config, args.stage, split, cache_root,
                               args.variant, args.clip_length, args.image_size, args.overwrite)
             print(f"[VideoPrism] {total} windows → sharded across {len(device_ids)} GPUs",

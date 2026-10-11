@@ -335,7 +335,7 @@
     ]
   },
   "meta": {
-    "source": "data/mabe2022/ethzoom_mabe_data_pseq_300_200_crop_160_0.2_pmin_32_gap_60/pretrain/training_index.json",
+    "source": "data/mabe2022/windows/pretrain/training_index.json",
     "seed": 42,
     "ratios": {
       "train": 0.7,

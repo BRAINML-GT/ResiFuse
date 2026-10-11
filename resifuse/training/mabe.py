@@ -946,7 +946,7 @@ def _accumulate_f1_counts_frame_index_with_other(
     classes: pred_other = none of C fired; gt_other = none of C active. This lets
     CalMS21 report the 4-class macro-F1 (attack/investigation/mount/other) from
     exactly the model's existing 3-class predictions — no extra head, no retrain.
-    Gated by ``config.report_other_class`` so mabe/freely are unaffected.
+    Gated by ``config.report_other_class`` so mabe/openfield are unaffected.
     """
     if logits.dim() != 3:
         raise RuntimeError("Expected per-frame logits [B,T,C] for frame-level F1.")

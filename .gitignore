@@ -1,7 +1,7 @@
 __pycache__/
 *.pyc
-data/
-runs/
+/data/
+/runs/
 checkpoints_*/
 *.pth
 *.out

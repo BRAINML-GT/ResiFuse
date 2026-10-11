@@ -112,17 +112,17 @@ python -m resifuse.features.videoprism --dataset calms21 --config configs/calms2
 
 ### Open Field
 
-Keypoints and videos of Sturman et al. (2020) under `data/freely_moving_mouse/annotated_segments/`.
+Keypoints and videos of Sturman et al. (2020) under `data/openfield/annotated_segments/`.
 
 ```bash
 # 1. 256-frame windows with pose, labels and 192 x 192 frames; the 50/10/40 video split is
 #    deterministic and made by the dataset class
-python -m resifuse.preprocessing.freely --config configs/freely_pretrain.yaml
-python -m resifuse.preprocessing.freely --config configs/freely_finetune.yaml
+python -m resifuse.preprocessing.openfield --config configs/openfield_pretrain.yaml
+python -m resifuse.preprocessing.openfield --config configs/openfield_finetune.yaml
 
 # 2. VideoPrism features (VideoPrism environment)
 for stage in pretrain finetune; do
-  python -m resifuse.features.videoprism --dataset freely --config configs/freely_${stage}.yaml \
+  python -m resifuse.features.videoprism --dataset openfield --config configs/openfield_${stage}.yaml \
     --stage $stage --splits train val test --devices 0
 done
 ```
@@ -140,7 +140,7 @@ for enc in videomae dinov3 clip qwen; do
 done
 ```
 
-To train on one of them, set `mabe_data_cache_dir` to its directory and `vision_dim` to its feature size (1024; 2048 for Qwen3.5) in the configs. `resifuse.features.hf_calms21` and `resifuse.features.hf_freely` extract the same encoders for CalMS21 and Open Field.
+To train on one of them, set `mabe_data_cache_dir` to its directory and `vision_dim` to its feature size (1024; 2048 for Qwen3.5) in the configs. `resifuse.features.hf_calms21` and `resifuse.features.hf_openfield` extract the same encoders for CalMS21 and Open Field.
 
 ## Training
 
@@ -152,7 +152,7 @@ We release the pretrained motion encoders used in the paper. Download them into 
 |---|---|
 | Mouse Triplet | `checkpoints/resifuse_pretrain_mabe.pth` |
 | CalMS21 | `checkpoints/resifuse_pretrain_calms21.pth` |
-| Open Field | `checkpoints/resifuse_pretrain_freely.pth` |
+| Open Field | `checkpoints/resifuse_pretrain_openfield.pth` |
 
 Download them from the [GitHub releases](https://github.com/BRAINML-GT/ResiFuse/releases) page.
 
@@ -163,7 +163,7 @@ Download them from the [GitHub releases](https://github.com/BRAINML-GT/ResiFuse/
 ```bash
 bash scripts/pretrain.sh mabe 2      # dataset, number of GPUs
 bash scripts/pretrain.sh calms21 2
-bash scripts/pretrain.sh freely 2
+bash scripts/pretrain.sh openfield 2
 ```
 
 `batch_size` in the configs is per GPU. Checkpoints are written to `pretrain_save_dir` of the pretraining config (`checkpoints_pretrain_<dataset>/<run>/best_pretrain_ep*.pth`). `SEED=<int>` fixes the random seed. To make a run resumable, give it a fixed directory: `RUN_DIR=runs/pretrain_mabe SAVE_INTERVAL=5 bash scripts/pretrain.sh mabe 2`; running the same command again continues from `RUN_DIR/latest.pth`. To fine-tune from your own checkpoint, set `PRETRAIN_CKPT=<path/to/best_pretrain_ep*.pth>` for the commands below.

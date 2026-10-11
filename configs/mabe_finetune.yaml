@@ -1,0 +1,206 @@
+# ResiFuse configuration: Mouse Triplet, finetune
+# Paths are relative to the repository root.
+
+# ============================================================================
+# DATA PATHS & CACHE
+# ============================================================================
+mabe_data_dir: data/mabe2022/resifuse_mabe_data_pseq_300_200_crop_160_0.2_pmin_32_gap_60
+mabe_data_cache_dir: data/mabe2022/resifuse_mabe_data_pseq_300_200_crop_160_0.2_pmin_32_gap_60/resifuse_mabe_cache_v2_videoprism
+
+use_vision_cache: true
+
+# Cache preprocessing
+overwrite: true
+cache_num_workers: 4
+
+# ============================================================================
+# DATASET SETTINGS
+# ============================================================================
+dataset: mabe            # nose headcentre neck earl earr bodycentre bcl bcr hipl hipr tailbase tailcentre tailtip
+
+# Sequence & window settings
+seq_len_cache: 128        # length when building cache (cache_ds_stride applied)
+ds_stride: 4
+
+label_valid_mode: any
+
+# Frame processing
+frame_resize: 128
+
+# Keypoint & motion features
+conf_mask_thresh: 0.0
+max_neighbors: 2
+use_neighbor_feats: true
+marker_subject_centric: true
+motion_include_velocity: false
+motion_include_confidence: true
+
+# ============================================================================
+# TRAINING CONFIGURATION
+# ============================================================================
+stage: finetune           # pretrain or finetune
+
+finetune_update_vq_ema: false
+
+# Frame selection and fusion
+warmup_epochs: 0           # Phase 1 warm-up epochs (motion-only, converges in 2-3 epochs)
+budget_ratio: 0.75       # fraction of frames to select for vision
+global_ratio: 1.0          # fraction of selected frames for global path
+frame_select_mode: residual  # residual | uniform | uncertainty | recon_error | surprise | online | confidence | learnable
+                               # only effective when 0 < budget_ratio < 1; ignored when budget_ratio=0 (no vision) or 1 (all frames)
+                               # confidence: pick frames with LOWEST mean DLC keypoint confidence
+                               #             (baseline ablation — uses the dataset's pose-tracker
+                               #             uncertainty prior, independent of any trained model)
+                               # learnable:  small MLP scoring frames from the continuous motion latent
+                               #             z_e (pre-quantization, D_z=128), trained end-to-end with
+                               #             classification loss via straight-through hard top-k.
+                               #             Fair-information baseline against the hand-designed residual
+                               #             rule ||z_e - z_q||, which is itself a function of z_e — so
+                               #             the MLP gets the same underlying signal but is free to learn
+                               #             any scoring function over it. See learnable_selector_hidden /
+                               #             _lr below.
+
+# Learnable frame selector (only used when frame_select_mode == learnable)
+learnable_selector_hidden: 64    # MLP hidden dim (≈80 params at hidden=16)
+learnable_selector_lr: 1.0e-4    # selector lr (defaults to finetune_lr if unset)
+vision_alpha: 1.0          # weight for independent vision head logits (0=motion only)
+vision_fuse_mode: feature    # replace | add | feature (middle fusion before BiGRU, forces joint training)
+use_social_pipeline: true   # true: z_q→context_transformer→social→fuse→BiGRU | false: z_q→BiGRU
+finetune_middle_modules: false
+motion_only_epochs: 5    # Phase 1: train motion head only, vision_alpha=0
+vision_only_epochs: 10     # Phase 2: freeze motion head, train vision head only
+                           # Phase 3 (remaining epochs): joint fine-tune both heads
+lambda_col: 0.0            # collision contrastive loss weight
+
+# Epochs
+pretrain_epochs: 200
+finetune_epochs: 50
+
+# Batch & gradient accumulation
+batch_size: 32
+grad_acc_steps: 1
+pretrain_grad_acc_steps: null
+finetune_grad_acc_steps: null
+
+# Learning rates
+pretrain_lr: 1.0e-4
+finetune_lr: 1.0e-4
+weight_decay: 1.0e-2
+grad_clip_norm: 0
+vq_lr_scale: 1
+
+# Learning rate scheduler2
+lr_scheduler: CosineAnnealingLR  # StepLR | MultiStepLR | ExponentialLR | LinearLR | CosineAnnealingLR | none
+lr_scheduler_params: {T_max: 50, eta_min: 1.0e-4}
+lr_warmup_epochs: 0
+lr_warmup_start_factor: 0.01
+
+# Masking & gate control
+mask_ratio: 0.5
+mabe_mae_target_ratio: 0.5
+mabe_mae_context_ratio: 0.15
+mabe_mae_block_ratio: 0.5
+mabe_mae_block_min: 4
+mabe_mae_block_max: 8
+
+social_attn_stat_enable: true
+social_attn_stat_batches: 5
+
+# Runtime settings
+num_workers: 4
+log_interval: 1
+
+# Performance & debugging
+torch_compile: false
+
+# ============================================================================
+# MODEL ARCHITECTURE
+# ============================================================================
+# BCE pos_weight mode
+use_pos_weight: true
+
+# Motion temporal encoder (residual BiGRU on motion path for temporal smoothing)
+bigru_hidden_dim: 256
+bigru_layers: 1
+bigru_dropout: 0.0
+
+# Vision temporal encoder (Transformer on vision path)
+vision_seq_heads: 4
+vision_seq_layers: 0
+vision_seq_dropout: 0.0
+
+# Feature dimensions
+motion_dim: 256
+vision_dim: 1024
+num_layers: 4
+num_heads: 8
+
+# SocialTransformerAggregator
+social_num_layers: 2
+social_num_heads: 8
+social_dropout: 0.0
+
+context_num_layers: 2
+context_num_heads: 8
+
+# Multi-animal aggregation
+animal_agg_mode: concat    # mean | concat (BAMS-style: preserves per-animal info)
+
+# Classification heads
+finetune_active_heads: [A]
+
+head_hidden_dim: 256
+head_dropout: 0.0
+
+# VQ-VAE settings
+vq_hidden_dim: 256
+vq_latent_dim: 128
+vq_codebook_size: 512
+vq_codebook_size2: 512
+vq_num_stride_blocks: 3
+vq_attn_layers: 2
+vq_attn_heads: 4
+vq_attn_layers_dec: 2
+vq_beta: 0.25
+vq_l2_normalize: false
+
+# ============================================================================
+# LOSS FUNCTIONS & WEIGHTS
+# ============================================================================
+# VQ-VAE losses (used in pretrain)
+vq_loss_weight: 0.1
+vq_recon_weight: 0.1
+
+# Vision prediction (pretrain only)
+vision_pred_weight: 0.5
+vision_pred_horizons: [4, 8, 16]
+vision_pred_weights: [1.0, 0.7, 0.4]
+vision_pred_warmup_epochs: 0
+vision_pred_loss: cosine
+
+# ============================================================================
+# CHECKPOINTING & LOGGING
+# ============================================================================
+pretrain_save_dir: ./checkpoints_pretrain_mabe
+finetune_save_dir: ./checkpoints_finetune_mabe
+
+# Save intervals
+pretrain_save_interval: 5
+finetune_save_interval: 10
+
+# Resume & warm-start
+run_name: "videoprism"
+
+pretrain_ckpt: null   # set by scripts/finetune.sh and scripts/unsup.sh (PRETRAIN_CKPT)
+
+# ============================================================================
+# UNSUPERVISED DEC (resifuse/training/unsup_mabe.py only; ignored by finetune)
+# ============================================================================
+dec_num_clusters: 50         # K >> num_classes so majority-map can merge
+dec_epochs: 30
+dec_lr: 1.0e-4               # vision_projector + motion_feat_norm + fused_feat_norm
+dec_centers_lr: 1.0e-4       # cluster centers (typically larger than dec_lr)
+dec_kmeans_samples: 50000    # target #samples for k-means init
+dec_kmeans_init_iters: 50    # k-means iterations at init (higher = more stable)
+dec_save_dir: ./checkpoints_unsup_mabe
+unsup_run_name: ""           # blank → auto timestamp+K+epochs

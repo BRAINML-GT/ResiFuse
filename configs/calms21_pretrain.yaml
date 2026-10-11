@@ -1,0 +1,181 @@
+# ResiFuse configuration: CalMS21, pretrain
+# Paths are relative to the repository root.
+
+# CalMS21 Task 1 Pretrain Config
+#
+# Derived from config_mabe_pretrain.yaml, with model capacity scaled down
+# to match CalMS21's smaller data volume (~3.2k train windows vs MABe's
+# ~50k+) and vocabulary reduced to 7 joints / 2 mice / 4 behaviors.
+# ============================================================================
+# DATA PATHS & CACHE
+# ============================================================================
+dataset: calms21
+
+# Stage 1 output (resifuse/preprocessing/calms21.py)
+calms21_data_dir: data/calms21/resifuse_calms21_data_w256_s128
+calms21_split_json: data/calms21/resifuse_calms21_data_w256_s128/calms21_split.json
+
+# Stage 3 output (resifuse/features/hf_calms21.py)
+calms21_cache_dir: data/calms21/resifuse_calms21_data_w256_s128/vision_cache_videoprism
+
+use_vision_cache: true
+
+cache_num_workers: 4
+
+# ============================================================================
+# DATASET SETTINGS
+# ============================================================================
+num_joints: 7              # nose, L/R ear, neck, L/R hip, tail_base
+num_mice: 2                # resident + intruder
+calms21_crop_size: 448     # per-mouse clamp-crop (fits within 1024x570, no padding)
+
+# Sequence & window settings
+# Stage 1 stores full-fps 256-frame windows; training sees
+# 256 // ds_stride = 64 frames per window (7.5 fps effective).
+seq_len_cache: 256         # length when building cache (pre-downsample)
+ds_stride: 4
+
+# Frame processing
+frame_resize: 224          # frames are resized to this before VideoPrism (as for the paper features)
+frame_resize_align: 16     # Qwen patch_size=16 -> align 16
+
+# Keypoint & motion features (no ego-centering / body-length scaling for
+# CalMS21 -- raw pixel coords are kept, same as Stage 1 output).
+marker_subject_centric: false
+conf_mask_thresh: 0.0
+max_neighbors: 1             # A=2 -> one neighbor per center mouse
+use_neighbor_feats: true
+motion_include_velocity: false
+motion_include_confidence: true
+
+# ============================================================================
+# TRAINING CONFIGURATION
+# ============================================================================
+stage: pretrain
+
+# Epochs -- CalMS21 has fewer windows per epoch, so we train longer.
+pretrain_epochs: 100
+finetune_epochs: 80        # used only when this config is reused for finetune
+
+# Batch & gradient accumulation -- halved vs MABe to give more gradient
+# updates per epoch on the smaller dataset.
+batch_size: 32
+grad_acc_steps: 1
+pretrain_grad_acc_steps: 1
+finetune_grad_acc_steps: null
+
+# Learning rates -- halved vs MABe to match halved capacity + batch.
+pretrain_lr: 1.0e-4
+finetune_lr: 5.0e-5
+weight_decay: 1.0e-2
+vq_lr_scale: 1
+
+# Learning rate scheduler
+lr_scheduler: CosineAnnealingLR
+lr_scheduler_params: {T_max: 100, eta_min: 1.0e-5}
+
+# Masking & MAE control -- same semantics as MABe.
+mask_ratio: 0.5
+mabe_mae_target_ratio: 0.5
+mabe_mae_context_ratio: 0.15
+mabe_mae_block_ratio: 0.5
+mabe_mae_block_min: 4
+mabe_mae_block_max: 8
+
+social_attn_stat_enable: true
+social_attn_stat_batches: 5
+
+gate_thresh: 1.0
+gate_topk_ratio: 1.0
+
+# Runtime
+log_interval: 1
+
+torch_compile: false
+
+# ============================================================================
+# MODEL ARCHITECTURE (capacity halved vs MABe)
+
+bigru_hidden_dim: 128       # was 256
+bigru_layers: 1
+bigru_dropout: 0.0
+
+motion_dim: 128             # was 256
+vision_dim: 1024            # VideoPrism output dim (Qwen3.5 pooled would be 2048)
+num_layers: 2               # was 4
+num_heads: 8
+
+social_num_layers: 2
+social_num_heads: 8
+social_dropout: 0.0
+
+context_num_layers: 2
+context_num_heads: 8
+
+# Classification head -- CalMS21 has a single 4-way task.
+# The legacy tri-head (A/B/C) structure is collapsed: only head_a is
+# actually used; B/C are kept as 4 to avoid breakage in the training
+# loop but should be treated as aliases of head_a.
+head_a_classes: 4
+head_hidden_dim: 128        # was 256
+head_dropout: 0.0
+
+# VQ-VAE -- codebook capacity significantly reduced.
+# With ~3.2k training windows, 512 codes = 6 windows per code (collapse
+# risk). 128 codes keeps a healthy windows-per-code ratio.
+vq_hidden_dim: 256
+vq_latent_dim: 128
+vq_codebook_size: 512
+vq_codebook_size2: 128
+vq_num_stride_blocks: 3
+vq_attn_layers: 2
+vq_attn_heads: 4
+vq_attn_layers_dec: 2
+vq_beta: 0.25
+vq_dead_code_threshold: 0.1
+vq_l2_normalize: false
+
+# Vision model (Qwen) -- unchanged from MABe.
+qwen_model_id: Qwen/Qwen3.5-2B
+qwen_flash_attn: true   # REQUIRED for speed: without flash-attn, Qwen3_5VisionAttention falls back to a Python loop over cu_seqlens chunks (~100s/forward on (2,64,3,224,224)).
+qwen_grad_checkpoint: false
+
+# Vision LoRA (frozen encoder, no LoRA by default).
+vision_lora_enable: false
+
+vision_use_deepstack: false
+vision_frame_diff: false
+vision_temporal_conv: false
+vision_temporal_conv_kernel: 5
+
+# ============================================================================
+# LOSS FUNCTIONS & WEIGHTS
+# ============================================================================
+# VQ losses
+vq_loss_weight: 0.1
+vq_recon_weight: 0.1
+vq_loss_warmup_epochs: 0
+
+lambda_sparse: 0
+
+# Vision prediction (System2 semantic prediction).
+# Horizons kept at [4, 8, 16] -- with T_ds=64 they cover 6.25% / 12.5% / 25%
+# of the window, matching MABe's relative scale (4/8/16 at T_ds=75).
+vision_pred_weight: 0.2
+vision_pred_horizons: [4, 8, 16]
+vision_pred_weights: [1.0, 0.7, 0.4]
+vision_pred_warmup_epochs: 0
+vision_pred_loss: cosine
+
+vision_vres_weight: 0.0
+
+# ============================================================================
+# CHECKPOINTING & LOGGING
+# ============================================================================
+pretrain_save_dir: ./checkpoints_pretrain_calms21
+finetune_save_dir: ./checkpoints_finetune_calms21
+
+pretrain_save_interval: 25
+finetune_save_interval: 5
+
+run_name: "pretrain"

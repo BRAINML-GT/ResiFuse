@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+data/
+runs/
+checkpoints_*/
+*.pth
+*.out
+.venv*/

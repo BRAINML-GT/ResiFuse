@@ -1,0 +1,28 @@
+[project]
+name = "resifuse"
+version = "1.0.0"
+description = "Learning When Visual Context Matters for Mouse Behavior Analysis (NeurIPS 2026)"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "torch==2.9.1",
+    "torchvision==0.24.1",
+    "transformers==5.3.0",  # HF encoders; the version that produced the paper features
+                            # (later versions changed the Qwen3.5 vision API)
+    "timm>=1.0.26",  # imported by the VideoMAEv2 remote code
+    "easydict>=1.13",  # imported by the VideoMAEv2 remote code
+    "numpy>=2.4.0",
+    "scipy>=1.16",
+    "scikit-learn>=1.8.0",
+    "pandas>=2.3.3",
+    "tables>=3.10.2",  # reads the DeepLabCut .h5 pose files
+    "pyyaml",
+    "tqdm",
+    "matplotlib>=3.10.8",
+    "decord>=0.6.0",
+    "tensorboard>=2.20.0",  # torch.utils.tensorboard
+]
+
+[tool.uv]
+# The repository is a set of scripts, not an installable package.
+package = false

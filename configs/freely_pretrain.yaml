@@ -1,0 +1,181 @@
+# ResiFuse configuration: Open Field, pretrain
+# Paths are relative to the repository root.
+
+# ============================================================================
+# DATA PATHS & CACHE
+# ============================================================================
+cache_dir: data/freely_moving_mouse/cache_windows_256
+vision_cache_dir: data/freely_moving_mouse/cache_windows_256/vision_feats_videoprism
+
+use_vision_cache: true
+
+# Cache preprocessing
+overwrite: true
+cache_num_workers: 4
+
+# ============================================================================
+# DATASET SETTINGS
+# ============================================================================
+dataset: freely_mouse
+num_joints: 13            # nose headcentre neck earl earr bodycentre bcl bcr hipl hipr tailbase tailcentre tailtip
+
+# Sequence & window settings
+seq_len_cache: 256        # length when building cache (cache_ds_stride applied)
+ds_stride: 4
+
+# Frame processing
+cache_frame_resize: 192   # frame size stored in the window caches (resifuse.preprocessing.freely)
+frame_resize: 224         # frames are resized to this before VideoPrism
+
+label_valid_mode: any
+
+# Data split ratios
+train_ratio: 0.5
+val_ratio: 0.1
+test_ratio: 0.4
+finetune_train_ratio: 0.5
+finetune_val_ratio: 0.1
+finetune_test_ratio: 0.4
+
+# Keypoint & motion features
+conf_mask_thresh: 0.0
+max_neighbors: 2
+use_neighbor_feats: false
+marker_subject_centric: true
+motion_include_velocity: false
+motion_include_confidence: true
+
+# ============================================================================
+# TRAINING CONFIGURATION
+# ============================================================================
+stage: pretrain           # pretrain or finetune or both (cahce)
+
+# Epochs
+pretrain_epochs: 100
+finetune_epochs: 50
+
+# Batch & gradient accumulation
+batch_size: 64
+grad_acc_steps: 1
+pretrain_grad_acc_steps: 1
+finetune_grad_acc_steps: null
+
+# Learning rates
+pretrain_lr: 1.0e-4
+finetune_lr: 1.0e-4
+weight_decay: 1.0e-2
+vq_lr_scale: 1
+
+# Learning rate scheduler
+lr_scheduler: CosineAnnealingLR  # StepLR | MultiStepLR | ExponentialLR | LinearLR | CosineAnnealingLR | none
+lr_scheduler_params: {T_max: 100, eta_min: 1.0e-5}
+
+# Masking & gate control
+mask_ratio: 0.5
+mabe_mae_target_ratio: 0.5
+mabe_mae_context_ratio: 0.15
+mabe_mae_block_ratio: 0.5
+mabe_mae_block_min: 4
+mabe_mae_block_max: 8
+
+social_attn_stat_enable: true
+social_attn_stat_batches: 5
+
+gate_thresh: 1.0
+gate_topk_ratio: 1.0  # >0: use top-k ratio instead of gate_thresh (e.g., 0.2 = top 20%)
+
+# Runtime settings
+log_interval: 1
+
+# Performance & debugging
+torch_compile: false
+
+# ============================================================================
+# MODEL ARCHITECTURE
+# ============================================================================
+# BiGRU settings
+bigru_hidden_dim: 256
+bigru_layers: 1
+bigru_dropout: 0.0
+
+# Feature dimensions
+motion_dim: 256
+vision_dim: 1024
+num_layers: 4
+num_heads: 8
+
+# SocialTransformerAggregator
+social_num_layers: 2
+social_num_heads: 8
+social_dropout: 0.0
+
+context_num_layers: 2
+context_num_heads: 8
+
+# Classification heads
+finetune_active_heads: [A]
+
+head_hidden_dim: 256
+head_dropout: 0.0
+
+# VQ-VAE settings
+vq_hidden_dim: 128
+vq_latent_dim: 128
+vq_codebook_size: 256
+vq_codebook_size2: 64
+vq_num_stride_blocks: 3
+vq_attn_layers: 1
+vq_attn_heads: 4
+vq_attn_layers_dec: 2
+vq_beta: 0.25
+vq_dead_code_threshold: 0.1
+vq_revival_warmup_steps: 3
+vq_l2_normalize: false
+
+# Vision model (Qwen)
+qwen_model_id: Qwen/Qwen3.5-2B
+qwen_flash_attn: true
+qwen_grad_checkpoint: false
+
+# Vision LoRA
+vision_lora_enable: false
+
+# Vision features & processing
+vision_use_deepstack: false
+vision_frame_diff: false
+vision_temporal_conv: false
+vision_temporal_conv_kernel: 5
+
+# ============================================================================
+# LOSS FUNCTIONS & WEIGHTS
+# ============================================================================
+# VQ-VAE losses
+vq_loss_weight: 0.5
+vq_recon_weight: 0.1
+vq_loss_warmup_epochs: 0
+
+# Sparsity regularization
+lambda_sparse: 0
+
+# Vision prediction (System2 semantic prediction)
+vision_pred_weight: 0.1
+vision_pred_horizons: [4, 8, 16]
+vision_pred_weights: [1.0, 0.7, 0.4]
+vision_pred_warmup_epochs: 0
+vision_pred_loss: cosine  # cosine | mse
+
+# Visual residual prediction (pretrain vision→motion bridge for finetune)
+vision_vres_weight: 0.0
+
+# ============================================================================
+# CHECKPOINTING & LOGGING
+# ============================================================================
+pretrain_save_dir: ./checkpoints_pretrain_free
+finetune_save_dir: ./checkpoints_finetune_free
+
+# Save intervals
+pretrain_save_interval: 25
+finetune_save_interval: 5
+
+# Resume & warm-start
+run_name: "pretrain"

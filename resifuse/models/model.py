@@ -174,8 +174,6 @@ class MLPHead(nn.Module):
         super().__init__()
         hidden = hidden_dim or dim_in
         self.net = nn.Sequential(
-            # nn.LayerNorm(dim_in),
-
             nn.Linear(dim_in, hidden),
             nn.GELU(),
             nn.Dropout(dropout),
@@ -183,8 +181,6 @@ class MLPHead(nn.Module):
             nn.GELU(),
             nn.Dropout(dropout),
             nn.Linear(hidden, num_classes),
-
-            # nn.Linear(dim_in, 4),
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:

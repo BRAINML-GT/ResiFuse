@@ -582,7 +582,6 @@ def build_dataset(cfg: dict, stage: str, split: str, preload: bool):
         raise RuntimeError("mabe_data_dir must be set in config for MABe cache export.")
     stage_dir = os.path.join(mabe_root, stage)
     split_json = os.path.join(stage_dir, f"{stage}_split.json")
-    # print(f"[Cache] split_json={split_json}", flush=True)
     _validate_split_json(split_json)
     include_velocity = cfg.get("motion_include_velocity", True)
     include_confidence = cfg.get("motion_include_confidence", True)

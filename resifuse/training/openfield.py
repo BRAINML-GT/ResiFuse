@@ -1202,27 +1202,6 @@ def train_one_epoch_finetune(
         cls_loss = loss_sum / max(num_samples, 1)
         for k in counts:
             counts[k] += cts[k]
-        # if is_main and batch_idx == 0:
-        #     was_training = model.training
-        #     model.eval()
-        #     with torch.no_grad():
-        #         eval_logits_seq, eval_alpha, _, _, _ = model(
-        #             motion_flat, kps_flat, frames_flat, pad_mask=pad_mask, vision_feats=vision_flat
-        #         )
-        #         eval_alpha_mean = eval_alpha.mean().item()
-        #         eval_alpha_min = eval_alpha.min().item()
-        #         eval_alpha_max = eval_alpha.max().item()
-        #         eval_alpha_active = (eval_alpha > getattr(config, "gate_thresh", 0.5)).float().mean().item()
-        #     if was_training:
-        #         model.train()
-        #     active_label = _get_active_ratio_label(config)
-        #     print(
-        #         "          [Alpha][Compare] "
-        #         f"train_mean={alpha_mean:.6f} train_min={alpha_min:.6f} train_max={alpha_max:.6f} "
-        #         f"train_{active_label}: {alpha_active:.6f} | "
-        #         f"eval_mean={eval_alpha_mean:.6f} eval_min={eval_alpha_min:.6f} eval_max={eval_alpha_max:.6f} "
-        #         f"eval_{active_label}: {eval_alpha_active:.6f}",flush=True
-        #     )
         loss_full = cls_loss
         loss_scaled = loss_full / grad_acc_steps
 
@@ -1235,14 +1214,6 @@ def train_one_epoch_finetune(
         cls_meter += cls_loss.item()
         correct_meter += correct
         sample_meter += num_samples
-
-        # if batch_idx % config.log_interval == 0 and is_main:
-        #     acc = correct / max(num_samples, 1) if num_samples > 0 else 0.0
-        #     print(
-        #         f"[Finetune] Iter {batch_idx}: loss={loss.item():.5f}, "
-        #         f"cls_loss={cls_loss.item():.5f}, sparsity={sparsity_loss.item():.5f}, "
-        #         f"count={count_loss.item():.5f}, acc={acc:.3f}, alpha_mean={alpha.mean().item():.4f}"
-        #     )
 
     denom = max(len(dataloader), 1)
     avg_loss = loss_meter / denom
@@ -1627,8 +1598,6 @@ def run_pretrain(args):
         print("enable torch compile!")
         torch._dynamo.config.capture_scalar_outputs = True
         model = torch.compile(model, mode="default", backend="inductor")
-        # if not torch._dynamo.config.capture_scalar_outputs:
-        #     torch._dynamo.config.capture_scalar_outputs = True
     if args.distributed:
         model = DDP(
             model,
@@ -1854,18 +1823,6 @@ def run_pretrain(args):
         writer.close()
 
 
-# def maybe_load_pretrain_weights(model: ResiFuseClassifier, ckpt_path: str, device: torch.device):
-#     if ckpt_path is None:
-#         return
-#     if not os.path.exists(ckpt_path):
-#         print(f"Pretrain checkpoint not found at {ckpt_path}, skipping warm-start.")
-#         return
-#     state = torch.load(ckpt_path, map_location=device)
-#     if isinstance(state, dict) and "model" in state:
-#         state = state["model"]
-#     missing, unexpected = model.load_state_dict(state, strict=False)
-#     print(f"Loaded pretrain ckpt with missing keys: {missing}, unexpected keys: {unexpected}")
-
 def maybe_load_pretrain_weights(model: ResiFuseClassifier, ckpt_path: str, device: torch.device):
     if ckpt_path is None:
         return
@@ -1907,28 +1864,6 @@ def maybe_load_pretrain_weights(model: ResiFuseClassifier, ckpt_path: str, devic
     state = _maybe_remap_prefix(state)
     if orig_keys and list(state.keys()) != orig_keys:
         print("[Pretrain] Remapped checkpoint keys to match current model prefixes.")
-    # resized = {}
-    # for key, value in list(state.items()):
-    #     if key not in model_state:
-    #         continue
-    #     target = model_state[key]
-    #     if value.shape == target.shape:
-    #         continue
-    #     if value.ndim == 3 and target.ndim == 3 and value.shape[0] == target.shape[0] and value.shape[2] == target.shape[2]:
-    #         src_len = value.shape[1]
-    #         tgt_len = target.shape[1]
-    #         # Resize temporal positional embeddings to match finetune seq_len.
-    #         value_resized = F.interpolate(
-    #             value.permute(0, 2, 1),
-    #             size=tgt_len,
-    #             mode="linear",
-    #             align_corners=False,
-    #         ).permute(0, 2, 1)
-    #         state[key] = value_resized
-    #         resized[key] = (src_len, tgt_len)
-    # if resized:
-    #     for name, (src_len, tgt_len) in resized.items():
-    #         print(f"Resized {name} from len={src_len} to len={tgt_len} for finetune.")
     missing, unexpected = model.load_state_dict(state, strict=False)
     print(f"Loaded pretrain ckpt with missing keys: {missing}, unexpected keys: {unexpected}")
 
@@ -2129,8 +2064,6 @@ def run_finetune(args):
         print("enable torch compile!")
         torch._dynamo.config.capture_scalar_outputs = True
         model = torch.compile(model, mode="default", backend="inductor")
-        # if not torch._dynamo.config.capture_scalar_outputs:
-        #     torch._dynamo.config.capture_scalar_outputs = True
     if args.distributed:
         model = DDP(
             model,
@@ -2635,12 +2568,6 @@ def run_finetune(args):
                     rowstr = " ".join(f"{v:>11d}" for v in row)
                     recall = row[gi] / max(sum(row), 1)
                     print(f"  [ConfMat][Test] gt={gname[:12]:<12s} {rowstr}  recall={recall:.4f}", flush=True)
-            # per_video_train = {hk: stems for hk, stems in train_eval_stats.get("per_video_counts", {}).items() if hk in active_heads}
-            # per_video_val = {hk: stems for hk, stems in val_stats.get("per_video_counts", {}).items() if hk in active_heads}
-            # per_video_test = {hk: stems for hk, stems in test_stats.get("per_video_counts", {}).items() if hk in active_heads}
-            # _log_per_video_f1("Train", per_video_train, head_classes, label_names, is_main=is_main)
-            # _log_per_video_f1("Val", per_video_val, head_classes, label_names, is_main=is_main)
-            # _log_per_video_f1("Test", per_video_test, head_classes, label_names, is_main=is_main)
             writer.add_scalar("finetune/train_loss", train_stats["loss"], epoch + 1)
             writer.add_scalar("finetune/train_cls", train_stats["cls"], epoch + 1)
             writer.add_scalar("finetune/train_sparse", train_stats["sparse"], epoch + 1)

@@ -175,36 +175,6 @@ class ProjectorMLP(nn.Module):
         return self.net(x)
 
 
-# class VectorQuantizer(nn.Module):
-#     """
-#     Standard VQ layer with straight-through gradient estimator.
-#     """
-#     def __init__(self, codebook_size, dim, beta=0.25):
-#         super().__init__()
-#         # codebook_size: number of embeddings in the codebook
-#         # dim: embedding dimension
-#         # beta: commitment loss scaling
-#         self.codebook = nn.Parameter(torch.randn(codebook_size, dim))
-#         self.beta = beta
-
-#     def forward(self, z):
-#         # z: [B, T, D]
-#         flat = z.reshape(-1, z.size(-1))
-#         dist = (
-#             flat.pow(2).sum(dim=1, keepdim=True)
-#             - 2 * flat @ self.codebook.t()
-#             + self.codebook.pow(2).sum(dim=1)
-#         )
-#         indices = dist.argmin(dim=1)
-#         quantized = self.codebook[indices].view_as(z)
-#         # Straight-through estimator
-#         quantized_st = z + (quantized - z).detach()
-#         commitment_loss = (quantized.detach() - z).pow(2).mean()
-#         codebook_loss = (quantized - z.detach()).pow(2).mean()
-#         # vq_loss = commitment_loss + self.beta * codebook_loss
-#         vq_loss = codebook_loss + self.beta * commitment_loss
-#         return quantized_st, vq_loss, indices.view(z.shape[0], z.shape[1])
-
 class EMAVectorQuantizer(nn.Module):
     """
     VQ layer with EMA codebook update + (optional) L2-normalized codebook
@@ -472,28 +442,6 @@ class EMAVectorQuantizer(nn.Module):
             "min_inter_dist": float(min_inter.min().item()),
         }
 
-
-# class ResidualVQ(nn.Module):
-#     """
-#     Two-level residual vector quantizer: z -> q1 + q2
-#     """
-#     def __init__(self, codebook1, codebook2, dim, beta=0.25):
-#         super().__init__()
-#         # codebook1: size of first codebook
-#         # codebook2: size of second codebook
-#         # dim: embedding dimension
-#         # beta: commitment loss scaling
-#         self.q1 = EMAVectorQuantizer(codebook1, dim, beta)
-#         self.q2 = EMAVectorQuantizer(codebook2, dim, beta)
-
-#     def forward(self, z):
-#         # z: [B, T, D]
-#         q1, loss1, idx1 = self.q1(z)
-#         residual = z - q1
-#         q2, loss2, idx2 = self.q2(residual)
-#         quantized = q1 + q2
-#         vq_loss = loss1 + loss2
-#         return quantized, vq_loss, (idx1, idx2)
 
 class ResidualVQ(nn.Module):
     """
@@ -901,8 +849,6 @@ class VisionMagnifier(nn.Module):
             self._get_vision_params()
             self._assert_vision_dim()
 
-        # self.adapter = nn.Identity()
-
         # Projector (Vision -> Motion Space)
         self.projector = ProjectorMLP(self.vision_dim, project_dim, project_dim)
 
@@ -1180,7 +1126,6 @@ class VisionMagnifier(nn.Module):
         Encode frames via Qwen image processor/backbone. Falls back to random features if processor/backbone missing.
         Returns one feature per input frame, shape=[B*T_orig, vision_dim], in the order of video_frames.
         """
-        # debug_log = self._is_main_process()
         debug_log = False
         compiling = False
         if hasattr(torch, "_dynamo"):
@@ -1413,13 +1358,11 @@ class VisionMagnifier(nn.Module):
             active_mask: [B, L] bool, marks the downsampled time steps that use vision
         """
         B, T, C_in, H_in, W_in = video_frames.shape
-        # debug_log = self._is_main_process()
         debug_log = False
         if debug_log:
             print(f"[VisionMagnifier][debug] forward start B={B} T={T} stride={stride} alpha_none={alpha is None}")
         if alpha is None:
             L = T
-            # active_mask = torch.ones(B, L, device=video_frames.device, dtype=torch.bool)
             raise NotImplementedError
         else:
             L = alpha.shape[1]
@@ -1435,16 +1378,12 @@ class VisionMagnifier(nn.Module):
                 if self.gate_uniform_topk:
                     base_idx = (torch.arange(topk, device=alpha_flat.device) * L) // topk
                     topk_idx = base_idx.unsqueeze(0).expand(alpha_flat.size(0), -1)
-                    # Randomly sample topk indices per batch (uniform without replacement)
-                    # rand_scores = torch.rand(alpha_flat.size(0), L, device=alpha_flat.device)
-                    # topk_idx = torch.topk(rand_scores, k=topk, dim=1, largest=True).indices
                 else:
                     _, topk_idx = torch.topk(alpha_flat, k=topk, dim=1, largest=True)
 
                 active_mask = torch.zeros_like(alpha_flat, dtype=torch.bool)
                 active_mask.scatter_(1, topk_idx, True)
             else:
-                # active_mask = alpha_flat >= self.gate_thresh
                 active_mask = torch.zeros_like(alpha_flat, dtype=torch.bool)
                 warnings.warn("active_mask is zero with topk=0")
         if debug_log:

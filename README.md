@@ -145,7 +145,7 @@ for enc in videomae dinov3 clip qwen; do
 done
 ```
 
-To train on one of them, set `mabe_data_cache_dir` to its directory and `vision_dim` to its feature size (1024; 2048 for Qwen3.5) in the configs. `resifuse.features.hf_calms21` and `resifuse.features.hf_openfield` extract the same encoders for CalMS21 and Open Field.
+To train on one of them, set `vision_dim` to its feature size (1024; 2048 for Qwen3.5) and point the feature directory in the configs to it: `mabe_data_cache_dir` for Mouse Triplet. The same four encoders can be extracted for CalMS21 with `resifuse.features.hf_calms21` (directory key `calms21_cache_dir`) and for Open Field with `resifuse.features.hf_openfield` (`vision_cache_dir`); the paper compares encoders on Mouse Triplet only.
 
 ## Training
 

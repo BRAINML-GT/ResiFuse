@@ -506,11 +506,7 @@ class OpenFieldDataset(Dataset):
     def _compute_body_length(self, kps_xy, conf):
         nose = kps_xy[..., 0, :]  # (T, A, 2)
         tail = kps_xy[..., -1, :]  # (T, A, 2)
-        # conf_pair = (conf[..., 0, 0] * conf[..., -1, 0])  # (T, A)
         dist = np.linalg.norm(nose - tail, axis=-1)  # (T, A)
-        # if conf_pair.sum() > 1e-6:
-        #     length = (dist * conf_pair).sum() / (conf_pair.sum() + 1e-6)
-        # else:
         if dist.size == 0:
             return 1.0
         length = dist.mean()
@@ -523,8 +519,6 @@ class OpenFieldDataset(Dataset):
         T, A, K, _ = kps.shape
         xy = kps[..., :2]
         conf = kps[..., 2:]
-        # conf_sum = conf.sum(axis=2, keepdims=True) + 1e-6
-        # center = (xy * conf).sum(axis=2, keepdims=True) / conf_sum  # (T, A, 1, 2)
         center = xy.mean(axis=2, keepdims=True)
         if use_subject_centric:
             scale = self._compute_body_length(xy, conf)
@@ -597,11 +591,6 @@ class OpenFieldDataset(Dataset):
             feat = np.concatenate(parts, axis=-1)
             motion_feats.append(feat.astype(np.float32))
         motion_feats = np.stack(motion_feats, axis=0)  # (A, T, D_in)
-        ### ============================================== ###
-        # if normalize_motion:
-        #     mu = motion_feats.mean(axis=1, keepdims=True)
-        #     sigma = motion_feats.std(axis=1, keepdims=True) + 1e-3
-        #     motion_feats = (motion_feats - mu) / sigma
         return kps_norm.transpose(1, 0, 2, 3), motion_feats
 
     def build_motion_feats_from_keypoints(
@@ -1339,7 +1328,6 @@ class MaBeMouseDataset(Dataset):
             self._load_split_json()
             self.samples = self._apply_split_json(self.samples, split)
         else:
-            # self.samples = self._split_data(self.samples, split, train_ratio)
             raise NotImplementedError
         self._maybe_filter_huddles_only()
         self.num_mice = self._infer_num_mice()
@@ -1723,7 +1711,6 @@ class MaBeMouseDataset(Dataset):
         vel[:, 0] = 0.0
         mask_prev = mask_f.roll(1, dims=1)
         mask_prev[:, 0] = 0.0
-        # vel = vel * mask_f * mask_prev
         vel *= mask_f
 
         parts = []
@@ -2033,12 +2020,6 @@ class MaBeMouseDataset(Dataset):
             # return t
 
         def _maybe_normalize_keypoints(t: torch.Tensor | None) -> torch.Tensor | None:
-            # if t is None or not torch.is_tensor(t) or not t.is_floating_point():
-            #     return t
-            # Avoid double-normalizing already normalized keypoints.
-            # max_abs = torch.nan_to_num(t, nan=0.0, posinf=0.0, neginf=0.0).abs().max()
-            # if max_abs <= 2.0:
-            #     return t
             scale = torch.tensor(
                 [self.video_width, self.video_height],
                 dtype=t.dtype,
@@ -2072,12 +2053,6 @@ class MaBeMouseDataset(Dataset):
             mouse_centers = mouse_data['centers'][window_idx]
             raw_kps = mouse_data['keypoints'][window_idx] if self.return_raw_keypoints else None
 
-            # ego_kps = _clean_nonfinite(ego_kps)
-            # conf = _clean_nonfinite(conf)
-            # mouse_centers = _clean_nonfinite(mouse_centers)
-            # if raw_kps is not None:
-            #     raw_kps = _clean_nonfinite(raw_kps)
-
             ego_kps = _maybe_normalize_keypoints(ego_kps)
             if raw_kps is not None:
                 raw_kps = _maybe_normalize_keypoints(raw_kps)
@@ -2106,12 +2081,6 @@ class MaBeMouseDataset(Dataset):
         centers = torch.stack(centers_list, dim=0)
         raw_keypoints = torch.stack(raw_list, dim=0) if raw_list is not None else None
 
-        # A, T, K, _ = ego_kps.shape
-        # keypoints = torch.zeros(A, T, K, 3, dtype=ego_kps.dtype, device=ego_kps.device,
-        # )
-        # keypoints[:, :, :, :2] = ego_kps
-
-        # change from keypoints to raw_keypoints!!!!!!!!!!!!! 
         A, T, K, _ = raw_keypoints.shape
         keypoints = torch.zeros(A, T, K, 3, dtype=raw_keypoints.dtype, device=raw_keypoints.device,
         )
@@ -2199,176 +2168,6 @@ class MaBeMouseDataset(Dataset):
     def get_config(self) -> Dict:
         """Get the preprocessing configuration"""
         return self.config
-
-
-# class MaBeMouseRawDataset(Dataset):
-#     """
-#     Alternative dataset that provides full sequences without windowing
-
-#     Useful for inference or visualization.
-#     """
-
-#     def __init__(
-#         self,
-#         data_dir: str,
-#         index_file: str = 'training_index.json',
-#         transform=None,
-#         preload: bool = False,
-#         cache_size: int = 20,
-#         ds_stride: int = 1
-#     ):
-#         """
-#         Initialize raw dataset
-
-#         Args:
-#             data_dir: directory containing processed .pt files
-#             index_file: name of the training index file
-#             transform: optional transform
-#             preload: if True, load all .pt files into memory at initialization
-#             cache_size: number of .pt files to keep in LRU cache (only used if preload=False)
-#             ds_stride: temporal downsampling stride (1=no downsampling, 2=half framerate, etc.)
-#         """
-#         self.data_dir = Path(data_dir)
-#         self.transform = transform
-#         self.preload = preload
-#         self.cache_size = cache_size
-#         self.ds_stride = ds_stride
-
-#         # Load index
-#         index_path = self.data_dir / index_file
-#         with open(index_path, 'r') as f:
-#             self.index_data = json.load(f)
-#         cache_dir = self.index_data.get('cache_dir')
-#         self.pt_root = Path(cache_dir) if cache_dir else self.data_dir
-
-#         # Build sequence index (one entry per video-mouse pair)
-#         self.sequences = []
-#         for video_meta in self.index_data['videos']:
-#             video_id = video_meta['video_id']
-#             pt_file = self.pt_root / f"{video_id}.pt"
-
-#             if not pt_file.exists():
-#                 continue
-
-#             for mouse_id in video_meta['mice'].keys():
-#                 self.sequences.append({
-#                     'video_id': video_id,
-#                     'mouse_id': mouse_id,
-#                     'pt_file': str(pt_file)
-#                 })
-
-#         # Initialize cache
-#         if self.preload:
-#             print(f"Preloading all data into memory...")
-#             self._preloaded_data = {}
-#             unique_files = set(s['pt_file'] for s in self.sequences)
-#             for pt_file in unique_files:
-#                 self._preloaded_data[pt_file] = torch.load(pt_file)
-#             print(f"  Loaded {len(self._preloaded_data)} .pt files")
-#         else:
-#             # Use LRU cache with OrderedDict
-#             self._cache = OrderedDict()
-#             self._cache_size = cache_size
-
-#         print(f"Initialized MaBeMouseRawDataset:")
-#         print(f"  Number of sequences: {len(self.sequences)}")
-#         if ds_stride > 1:
-#             print(f"  Downsampling stride: {ds_stride}")
-#         if preload:
-#             print(f"  Mode: Preloaded (all data in memory)")
-#         else:
-#             print(f"  Mode: Cached (LRU cache size: {cache_size})")
-
-#     def __len__(self) -> int:
-#         return len(self.sequences)
-
-#     def _load_pt_file(self, pt_file: str) -> Dict:
-#         """Load a .pt file with caching"""
-#         if self.preload:
-#             return self._preloaded_data[pt_file]
-#         else:
-#             if pt_file in self._cache:
-#                 self._cache.move_to_end(pt_file)
-#                 return self._cache[pt_file]
-#             else:
-#                 data = torch.load(pt_file)
-#                 self._cache[pt_file] = data
-#                 self._cache.move_to_end(pt_file)
-#                 if len(self._cache) > self._cache_size:
-#                     self._cache.popitem(last=False)
-#                 return data
-
-#     def __getitem__(self, idx: int) -> Dict[str, torch.Tensor]:
-#         """Get a full sequence"""
-#         seq_meta = self.sequences[idx]
-
-#         # Load cached data (with LRU cache or preload)
-#         cached_data = self._load_pt_file(seq_meta['pt_file'])
-#         mouse_data = cached_data[seq_meta['mouse_id']].copy()
-
-#         # Apply temporal downsampling if ds_stride > 1
-#         if self.ds_stride > 1:
-#             mouse_data['cropped_video'] = mouse_data['cropped_video'][::self.ds_stride]
-#             mouse_data['keypoints'] = mouse_data['keypoints'][::self.ds_stride]
-#             mouse_data['ego_keypoints'] = mouse_data['ego_keypoints'][::self.ds_stride]
-#             mouse_data['neighbor_keypoints'] = mouse_data['neighbor_keypoints'][::self.ds_stride]
-#             mouse_data['mask'] = mouse_data['mask'][::self.ds_stride]
-#             mouse_data['confidence'] = mouse_data['confidence'][::self.ds_stride]
-#             mouse_data['centers'] = mouse_data['centers'][::self.ds_stride]
-
-#         # Apply transform if provided
-#         if self.transform is not None:
-#             mouse_data['cropped_video'] = self.transform(mouse_data['cropped_video'])
-
-#         mouse_data['metadata'] = {
-#             'video_id': seq_meta['video_id'],
-#             'mouse_id': seq_meta['mouse_id'],
-#             'ds_stride': self.ds_stride
-#         }
-
-#         return mouse_data
-
-
-# def collate_fn(batch: List[Dict]) -> Dict[str, torch.Tensor]:
-#     """
-#     Custom collate function for batching samples
-
-#     Args:
-#         batch: list of samples from __getitem__
-
-#     Returns:
-#         batched: dict with batched tensors
-#     """
-#     # Stack tensors
-#     batched = {
-#         'cropped_video': torch.stack([b['cropped_video'] for b in batch]),
-#         'keypoints': torch.stack([b['keypoints'] for b in batch]),
-#         'mask': torch.stack([b['mask'] for b in batch]),
-#         'confidence': torch.stack([b['confidence'] for b in batch]),
-#         'metadata': [b['metadata'] for b in batch]  # Keep as list
-#     }
-#     if 'frames' in batch[0]:
-#         batched['frames'] = torch.stack([b['frames'] for b in batch])
-#     if 'neighbor_keypoints' in batch[0]:
-#         batched['neighbor_keypoints'] = torch.stack([b['neighbor_keypoints'] for b in batch])
-#     if 'motion_feats' in batch[0]:
-#         batched['motion_feats'] = torch.stack([b['motion_feats'] for b in batch])
-#     if 'neighbor_feats' in batch[0]:
-#         batched['neighbor_feats'] = torch.stack([b['neighbor_feats'] for b in batch])
-
-#     # Include raw keypoints if present
-#     if 'raw_keypoints' in batch[0]:
-#         batched['raw_keypoints'] = torch.stack([b['raw_keypoints'] for b in batch])
-#     if 'label' in batch[0]:
-#         batched['label'] = torch.stack([b['label'] for b in batch])
-#     if 'label_name' in batch[0]:
-#         batched['label_name'] = [b['label_name'] for b in batch]
-#     if 'frame_labels' in batch[0]:
-#         batched['frame_labels'] = torch.stack([b['frame_labels'] for b in batch])
-#     if 'frame_mask' in batch[0]:
-#         batched['frame_mask'] = torch.stack([b['frame_mask'] for b in batch])
-
-#     return batched
 
 
 # ============================================================================
